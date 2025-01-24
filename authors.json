@@ -1,0 +1,56 @@
+{
+  "sepolia": [
+    {
+      "ethAddress": "0xB43b199F956016C6E8437726c42F95B9B44f6c98",
+      "ethUncompressedPublicKey": "0x04376fdd0add4a5ab1c3536422dd8647b729ad5d35ebeae5358fd54ac2ac7ce7d25d4afcdeb6596aaa3f15b9e9e615ded91a8ec8f722d8efe53155908f7e3f60f4",
+      "t2PublicKey": "0x78155939f63f04d5d9b69cc1cfb3e98c9e7e940cec690a26cbdea7be8b9f7533"
+    },
+    {
+      "ethAddress": "0x6547496874442142896a015E908095616D3946a5",
+      "ethUncompressedPublicKey": "0x04f094c62de2f01a2f26bd1db153bcec9e57a3e94a97cd3fa3702fb4730d9084e4412ffb3f30c36a6828546bfd2ebb72668a1b6660efed614e5190bab048ea05b4",
+      "t2PublicKey": "0x78bbb5eec6e6d79d679d44f0f6ab820d0c0b955def3b05b8f1dbb23f9048592f"
+    },
+    {
+      "ethAddress": "0x51Ec29ac19994a76EC83859E92A712119ca048DF",
+      "ethUncompressedPublicKey": "0x046e83d53555e68cdb38f8f92be68c0610e08ebe7a6ef9c6ed5ac9dcdf575308a2a5bd87cee23d75770ab065d4674a61235ed8f6d8f0b606fa754c7dbada99cf17",
+      "t2PublicKey": "0xe293b717b63cf1ebce61a0b4dc8a0fcc7670e7ea9638e45dcda46fe23194c377"
+    },
+    {
+      "ethAddress": "0x73cC017Ed5e34bF3E77fD18CCd4760b25B7e4468",
+      "ethUncompressedPublicKey": "0x04ef2cfe2d40140b9de6b1af5b4d172e3538548bb8f3b55042294915dcbafe45fddfcada08bd227078b954714c227d4550ba5032cdd163764d948dcf9c7cebf7f3",
+      "t2PublicKey": "0x281d02bdcd58e133a269848d1dc1d730df6173f2e13a71a7007e00f0c7a6223e"
+    },
+    {
+      "ethAddress": "0x58f272b4F59d8E28954cA7FBE19E3C5D8F52F4a7",
+      "ethUncompressedPublicKey": "0x041473964134e3f5603ccb563dbafafff81e1047c7d7c8cd1cd62cd033f43697efc6d062cdf236d4af1f7d0b4abcac590938add7d7b114cacb435db364bc93f4fc",
+      "t2PublicKey": "0x8af997028297e0b69be1bf436ac3a6dec6438badfdb281e637caff3c54d23642"
+    }
+  ],
+  "mainnet": [
+    {
+      "ethAddress": "",
+      "ethUncompressedPublicKey": "",
+      "t2PublicKey": ""
+    },
+    {
+      "ethAddress": "",
+      "ethUncompressedPublicKey": "",
+      "t2PublicKey": ""
+    },
+    {
+      "ethAddress": "",
+      "ethUncompressedPublicKey": "",
+      "t2PublicKey": ""
+    },
+    {
+      "ethAddress": "",
+      "ethUncompressedPublicKey": "",
+      "t2PublicKey": ""
+    },
+    {
+      "ethAddress": "",
+      "ethUncompressedPublicKey": "",
+      "t2PublicKey": ""
+    }
+  ]
+}

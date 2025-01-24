@@ -1,0 +1,7 @@
+node_modules/
+.openzeppelin/
+artifacts/
+cache/
+coverage/
+**/*.md
+*ignore

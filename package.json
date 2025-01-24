@@ -1,0 +1,29 @@
+{
+  "name": "truth-contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "format": "npm run pretty:fix && npm run pretty:sol",
+    "pretty:fix": "prettier --config ./.prettierrc.json --write \"**/*.{js,json}\"",
+    "pretty:sol": "npx prettier --write --plugin=prettier-plugin-solidity contracts/**/*.sol"
+  },
+  "description": "Ethereum smart contracts for the Truth Network",
+  "author": "Truth-Protocol-Foundation",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://Truth-Protocol-Foundation/truth-contracts"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-ledger": "^1.0.3",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.0",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.18",
+    "hardhat-contract-sizer": "^2.10.0",
+    "merkletreejs": "^0.4.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-solidity": "^1.4.2"
+  }
+}

@@ -48,6 +48,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
+  address public truth;
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327
@@ -78,6 +79,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   function initialize(
+    address _truth,
     address[] calldata t1Addresses,
     bytes32[] calldata t1PubKeysLHS,
     bytes32[] calldata t1PubKeysRHS,
@@ -88,8 +90,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
+    truth = _truth;
     nextAuthorId = 1;
+    _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
   }
 
   /**

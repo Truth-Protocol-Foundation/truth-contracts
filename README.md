@@ -51,10 +51,10 @@ ETHERSCAN_API_KEY
 `npx hardhat --network <network> deploy token`
 
 ### Upgrade Truth Token
-`npx hardhat --network <network> upgrade token <contract address>`
+`npx hardhat --network <network> upgrade token <token address>`
 
 ### Deploy Truth Bridge
-`npx hardhat --network <network> deploy bridge`
+`npx hardhat --network <network> deploy bridge <token address>`
 
 ### Upgrade Truth Bridge
-`npx hardhat --network <network> upgrade bridge <contract address>`
+`npx hardhat --network <network> upgrade bridge <bridge address>`

@@ -266,7 +266,6 @@ function toLittleEndianBytesStr(amount) {
 
 // Keep alphabetical.
 module.exports = {
-  coder,
   createLowerProof,
   createTreeAndPublishRoot,
   deployTruthBridge,

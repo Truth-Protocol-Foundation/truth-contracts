@@ -46,7 +46,7 @@ describe('Author Functions', async () => {
     });
 
     context('succeeds', async () => {
-      it('via authors', async () => {
+      it('via the authors', async () => {
         const expiry = await getValidExpiry();
         const confirmations = await getConfirmations(bridge, 'publishRoot', rootHash, expiry, t2TxId);
         await expect(bridge.connect(senderAuthor).publishRoot(rootHash, expiry, t2TxId, confirmations))
@@ -56,7 +56,7 @@ describe('Author Functions', async () => {
     });
 
     context('fails when', async () => {
-      it('contract is paused', async () => {
+      it('the bridge is paused', async () => {
         await bridge.pause();
         const newt2TxId = randomT2TxId();
         const newRootHash = randomBytes32();
@@ -195,7 +195,7 @@ describe('Author Functions', async () => {
     });
 
     context('fails when', async () => {
-      it('bridge is paused', async () => {
+      it('the bridge is paused', async () => {
         await bridge.pause();
         const expiry = await getValidExpiry();
         const t2TxId = randomT2TxId();
@@ -255,7 +255,7 @@ describe('Author Functions', async () => {
         nextAuthorId++;
       });
 
-      it('passing a T2 public key which is already in use', async () => {
+      it('the T2 public key is already in use', async () => {
         const t2TxId = randomT2TxId();
         const expiry = await getValidExpiry();
         const confirmations = await getConfirmations(bridge, 'addAuthor', [prospectiveAuthor.t1PubKey, existingAuthor.t2PubKey], expiry, t2TxId);
@@ -380,7 +380,7 @@ describe('Author Functions', async () => {
     });
   });
 
-  context('Corroborate T2 tx', async () => {
+  context('Corroborating T2 tx', async () => {
     let t2TxId, expiry;
 
     beforeEach(async () => {

@@ -5,8 +5,8 @@ require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('dotenv').config();
 
-const TOKEN_NAME = '$TRUTH';
-const TOKEN_SYMBOL = '$TRUTH';
+const TOKEN_NAME = 'Truth';
+const TOKEN_SYMBOL = 'TRU';
 const TOKEN_SUPPLY = 100000000000n;
 
 task('deploy')

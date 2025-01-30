@@ -1,44 +1,39 @@
 # Contracts
 
-## Truth Token (`$TRUTH`)
-Upgradeable ERC20 token with a total supply of 100,000,000,000 tokens of 10 decimals.\
-Extended to include ERC-2612 permit-based approvals.
+## 1. Truth Token (`$TRUTH`)
+- Standard [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token with a total supply of 100,000,000,000 tokens of 10 decimals.
+- Extended to include [ERC-2612](https://eips.ethereum.org/EIPS/eip-2612) permit-based approvals.
+- Upgradeable.
 
 
-## Truth Bridge
-Upgradeable bridging contract connecting the Truth Network with Ethereum.
-
-### Functionality
-
-#### Author Management
-The addition, activation and removal of authors (TN block creators) by author consensus.
-
-#### Root publishing
-The periodic checkpointing of TN transactions (summarised as Merkle roots) by author consensus.
-
-#### Bridging funds
-The movement of ERC20 tokens between Ethereum and Truth Network by:
-   - **Lifting** - Locking tokens in the contract before authorising their re-creation in the specified TN recipient account.
-   - **Lowering** - Unlocking tokens and transferring them to the Ethereum recipient specified in the tokens' proof of destruction on the TN.
-
+## 2. Truth Bridge
+- Bridging contract connecting Ethereum with, and secured by, the Truth Network (TN).
+- Handles:
+  - Adding, activating and removing authors (TN block creators) by author consensus.
+  - Periodically checkpointing TN transactions (summarised as Merkle roots) by author consensus.
+  - The movement of ERC20 tokens between Ethereum and TN by:
+    - **Lifting** - Locking received tokens in the contract and authorising their re-creation in the specified TN recipient account.
+    - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.
+- Upgradeable.
 
 # Development
 
 ## Setup
 - do `npm i`
+- ensure `authors.json` includes the correct authors for the network
 - Create a `.env` file with the following entries:
 ```
 MAINNET_ALCHEMY_OR_INFURA_URL
 SEPOLIA_ALCHEMY_OR_INFURA_URL
 SEPOLIA_DEPLOYER_PRIVATE_KEY
 ETHERSCAN_API_KEY
+LEDGER_MAINNET_DEPLOYER_ADDRESS
 ```
-- ensure `authors.json` includes the correct authors for the environment
 
 ### Format the code
 `npm run format`
 
-### Run tests
+### Run tests (includes gas report)
 `npm run test`
 
 ### Run coverage

@@ -58,16 +58,16 @@ describe('Owner Functions', async () => {
   });
 
   context('Renouncing ownership', async () => {
-    context('has no effect', async () => {
+    context('is disabled', async () => {
       it('on the bridge', async () => {
         expect(owner).to.equal(await bridge.owner());
-        await bridge.renounceOwnership();
+        await expect(bridge.renounceOwnership()).to.be.revertedWith('Disabled');
         expect(owner).to.equal(await bridge.owner());
       });
 
       it('on the truth token', async () => {
         expect(owner).to.equal(await truth.owner());
-        await truth.renounceOwnership();
+        await expect(truth.renounceOwnership()).to.be.revertedWith('Disabled');
         expect(owner).to.equal(await truth.owner());
       });
     });

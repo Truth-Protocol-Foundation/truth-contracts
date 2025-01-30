@@ -320,7 +320,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   /**
    * @dev Disabled function
    */
-  function renounceOwnership() public override onlyOwner {}
+  function renounceOwnership() public view override onlyOwner {
+    revert('Disabled');
+  }
 
   function _authorizeUpgrade(address) internal override onlyOwner {}
 

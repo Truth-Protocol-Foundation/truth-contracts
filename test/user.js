@@ -28,8 +28,8 @@ describe('User Functions', async () => {
 
   context('Truth token', async () => {
     it('confirm setup', async () => {
-      expect(await truth.name(), '$TRUTH');
-      expect(await truth.symbol(), '$TRUTH');
+      expect(await truth.name(), 'Truth');
+      expect(await truth.symbol(), 'TRU');
       expect(await truth.decimals(), 10n);
       expect(await truth.totalSupply(), 1000000000000000000000n);
     });

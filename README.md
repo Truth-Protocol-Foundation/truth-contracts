@@ -1,6 +1,6 @@
 # Contracts
 
-## 1. Truth Token (`$TRUTH`)
+## 1. Truth Token (`TRU`)
 - Standard [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token with a total supply of 100,000,000,000 tokens of 10 decimals.
 - Extended to include [ERC-2612](https://eips.ethereum.org/EIPS/eip-2612) permit-based approvals.
 - Upgradeable.

@@ -84,8 +84,8 @@ async function deployTruthBridge(truth) {
 
 async function deployTruthToken(supply) {
   const contract = await ethers.getContractFactory('TruthToken');
-  const name = '$TRUTH';
-  const symbol = '$TRUTH';
+  const name = 'Truth';
+  const symbol = 'TRU';
   const token = await upgrades.deployProxy(contract, [name, symbol, supply], { kind: 'uups' });
   token.address = await token.getAddress();
   return token;

@@ -1,28 +1,84 @@
 const { deployTruthBridge, deployTruthToken, expect, getAccounts, getAuthors, init, ZERO_ADDRESS } = require('./helper.js');
-let authors, bridge, truth, owner, otherAccount, numAuthors;
+let authors, bridge, truth, owner, newOwner, otherAccount, numAuthors;
 
 describe('Owner Functions', async () => {
   before(async () => {
     numAuthors = 5;
     await init(5);
-    [owner, otherAccount] = getAccounts();
+    [owner, newOwner, otherAccount] = getAccounts();
     authors = getAuthors();
     truth = await deployTruthToken();
     bridge = await deployTruthBridge(truth);
   });
 
-  context('Renouncing bridge ownership', async () => {
+  context('Transferring Ownership', async () => {
     context('succeeds', async () => {
-      it('in doing nothing when the caller is the owner', async () => {
+      it('when called by the owner for the bridge', async () => {
+        await expect(bridge.transferOwnership(newOwner.address)).to.emit(bridge, 'OwnershipTransferStarted').withArgs(owner, newOwner.address);
+
+        expect(newOwner.address).to.equal(await bridge.pendingOwner());
+        expect(owner).to.equal(await bridge.owner());
+
+        await expect(bridge.connect(newOwner).acceptOwnership()).to.emit(bridge, 'OwnershipTransferred').withArgs(owner, newOwner.address);
+
+        expect(ZERO_ADDRESS).to.equal(await bridge.pendingOwner());
+        expect(newOwner.address).to.equal(await bridge.owner());
+
+        await bridge.connect(newOwner).transferOwnership(owner);
+        await bridge.acceptOwnership();
+        expect(owner).to.equal(await bridge.owner());
+      });
+
+      it('when called by the owner for the truth token', async () => {
+        await expect(truth.transferOwnership(newOwner.address)).to.emit(truth, 'OwnershipTransferStarted').withArgs(owner, newOwner.address);
+
+        expect(newOwner.address).to.equal(await truth.pendingOwner());
+        expect(owner).to.equal(await truth.owner());
+
+        await expect(truth.connect(newOwner).acceptOwnership()).to.emit(truth, 'OwnershipTransferred').withArgs(owner, newOwner.address);
+
+        expect(ZERO_ADDRESS).to.equal(await truth.pendingOwner());
+        expect(newOwner.address).to.equal(await truth.owner());
+
+        await truth.connect(newOwner).transferOwnership(owner);
+        await truth.acceptOwnership();
+        expect(owner).to.equal(await truth.owner());
+      });
+    });
+    context('fails', async () => {
+      it('when the caller is not the owner', async () => {
+        await expect(bridge.connect(otherAccount).transferOwnership(otherAccount.address)).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
+      });
+
+      it('when an unauthorised account attempts to accept ownership', async () => {
+        await bridge.transferOwnership(newOwner.address);
+        await expect(bridge.connect(otherAccount).acceptOwnership()).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
+      });
+    });
+  });
+
+  context('Renouncing ownership', async () => {
+    context('has no effect', async () => {
+      it('on the bridge', async () => {
         expect(owner).to.equal(await bridge.owner());
         await bridge.renounceOwnership();
         expect(owner).to.equal(await bridge.owner());
       });
+
+      it('on the truth token', async () => {
+        expect(owner).to.equal(await truth.owner());
+        await truth.renounceOwnership();
+        expect(owner).to.equal(await truth.owner());
+      });
     });
 
     context('fails', async () => {
-      it('when the caller is not the owner', async () => {
+      it('on the bridge when the caller is not the owner', async () => {
         await expect(bridge.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
+      });
+
+      it('on the truth token when the caller is not the owner', async () => {
+        await expect(truth.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(truth, 'OwnableUnauthorizedAccount');
       });
     });
   });
@@ -55,7 +111,7 @@ describe('Owner Functions', async () => {
     });
   });
 
-  context('Initialization', async () => {
+  context('Bridge initialization', async () => {
     function initialValues() {
       return {
         truth: truth.address,

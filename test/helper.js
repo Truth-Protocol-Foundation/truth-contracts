@@ -8,6 +8,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
 const MIN_AUTHORS = 4;
+const ONE_HUNDRED_BILLION = 100000000000n;
 
 let additionalTx = [];
 let accounts = [];
@@ -81,11 +82,11 @@ async function deployTruthBridge(truth) {
   return bridge;
 }
 
-async function deployTruthToken(supplyOverride) {
+async function deployTruthToken(supply) {
   const contract = await ethers.getContractFactory('TruthToken');
   const name = '$TRUTH';
-  const supply = supplyOverride || 100000000000n;
-  const token = await upgrades.deployProxy(contract, [name, supply], { kind: 'uups' });
+  const symbol = '$TRUTH';
+  const token = await upgrades.deployProxy(contract, [name, symbol, supply], { kind: 'uups' });
   token.address = await token.getAddress();
   return token;
 }
@@ -284,6 +285,7 @@ module.exports = {
   increaseBlockTimestamp,
   init,
   MIN_AUTHORS,
+  ONE_HUNDRED_BILLION,
   printErrorCodes,
   randomBytes32,
   randomHex,

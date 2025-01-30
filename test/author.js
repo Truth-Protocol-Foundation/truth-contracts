@@ -12,6 +12,7 @@ const {
   init,
   increaseBlockTimestamp,
   MIN_AUTHORS,
+  ONE_HUNDRED_BILLION,
   randomBytes32,
   randomHex,
   randomT2TxId,
@@ -27,7 +28,7 @@ describe('Author Functions', async () => {
     await init(numAuthors);
     [owner, newAuthor, prospectiveAuthor] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken();
+    truth = await deployTruthToken(ONE_HUNDRED_BILLION);
     bridge = await deployTruthBridge(truth);
     senderAuthor = authors[0].account;
     existingAuthor = authors[1];

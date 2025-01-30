@@ -1,4 +1,4 @@
-const { deployTruthBridge, deployTruthToken, expect, getAccounts, getAuthors, init, ZERO_ADDRESS } = require('./helper.js');
+const { deployTruthBridge, deployTruthToken, expect, getAccounts, getAuthors, init, ONE_HUNDRED_BILLION, ZERO_ADDRESS } = require('./helper.js');
 let authors, bridge, truth, owner, newOwner, otherAccount, numAuthors;
 
 describe('Owner Functions', async () => {
@@ -7,7 +7,7 @@ describe('Owner Functions', async () => {
     await init(5);
     [owner, newOwner, otherAccount] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken();
+    truth = await deployTruthToken(ONE_HUNDRED_BILLION);
     bridge = await deployTruthBridge(truth);
   });
 
@@ -226,7 +226,7 @@ describe('Owner Functions', async () => {
     });
 
     it('Cannot reinitialize the truth token', async () => {
-      await expect(truth.initialize('$Truth2', 1234567n)).to.be.reverted;
+      await expect(truth.initialize('$TRUTH2', '$TRUTH2', 1234567n)).to.be.reverted;
     });
   });
 

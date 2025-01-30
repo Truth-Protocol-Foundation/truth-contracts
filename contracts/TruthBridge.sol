@@ -20,11 +20,9 @@ import '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import './libraries/BLAKE2b.sol';
 
 contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, UUPSUpgradeable {
   using SafeERC20 for IERC20;
-  using BLAKE2b for bytes;
 
   string private constant ESM_PREFIX = '\x19Ethereum Signed Message:\n32';
   uint256 private constant LOWER_DATA_LENGTH = 20 + 32 + 20 + 4; // token address + amount + recipient address + lower ID
@@ -56,10 +54,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error CannotChangeT2Key(bytes32); // 0x140c6815
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
+  error InvalidT2Key(); // 0xf4fc87a4
   error LiftFailed(); // 0xb19ed519
   error LiftLimitHit(); // 0xc36d2830
   error LowerIsUsed(); // 0x24c1c1ce
   error MissingKeys(); // 0x097ec09e
+  error MissingTruth(); // 0xd1585e94
   error NotAnAuthor(); // 0x157b0512
   error NotEnoughAuthors(); // 0x3a6a875c
   error RootHashIsUsed(); // 0x2c8a3b6e
@@ -90,9 +90,18 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
+    if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
+  }
+
+  function pause() external onlyOwner whenNotPaused {
+    _pause();
+  }
+
+  function unpause() external onlyOwner whenPaused {
+    _unpause();
   }
 
   /**
@@ -170,14 +179,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
-  function lift(address token, bytes32 t2RecipientPublicKey, uint256 amount) external whenNotPaused nonReentrant {
-    emit LogLifted(token, t2RecipientPublicKey, _lift(token, amount));
+  function lift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
+    if (t2PubKey == 0) revert InvalidT2Key();
+    emit LogLifted(token, t2PubKey, _lift(token, amount));
   }
 
   /**
    * @dev lift variant accepting an ERC-2612 permit in place of prior approval.
    */
   function lift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+    if (t2PubKey == 0) revert InvalidT2Key();
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
     emit LogLifted(token, t2PubKey, _lift(token, amount));
   }
@@ -302,14 +313,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   /**
    * @dev Returns the T2 public key derived from the T1 address.
    */
-  function deriveT2PublicKey(address t1Address) public view returns (bytes32) {
-    return abi.decode(BLAKE2b.hash(abi.encodePacked(t1Address), '', '', '', 32), (bytes32));
+  function deriveT2PublicKey(address t1Address) public pure returns (bytes32) {
+    return keccak256(abi.encodePacked(t1Address));
   }
 
   /**
    * @dev Disabled function
    */
-  function renounceOwnership() public override onlyOwner {}
+  function renounceOwnership() public view override onlyOwner {
+    revert('Disabled');
+  }
 
   function _authorizeUpgrade(address) internal override onlyOwner {}
 

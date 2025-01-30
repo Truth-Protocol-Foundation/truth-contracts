@@ -5,13 +5,9 @@ require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('dotenv').config();
 
-async function verify(address) {
-  try {
-    await hre.run('verify:verify', { address });
-  } catch (error) {
-    console.log('ignoring supposed verify "error"');
-  }
-}
+const TOKEN_NAME = '$TRUTH';
+const TOKEN_SYMBOL = '$TRUTH';
+const TOKEN_SUPPLY = 100000000000n;
 
 task('deploy')
   .addPositionalParam('contractType')
@@ -66,7 +62,7 @@ task('upgrade')
 
 function getInitArgs(args, network) {
   if (args.contractType === 'token') {
-    return ['$TRUTH', 100000000000n];
+    return [TOKEN_NAME, TOKEN_SYMBOL, TOKEN_SUPPLY];
   } else if (args.contractType === 'bridge') {
     const authors = require('./authors.json')[network];
     return [
@@ -89,6 +85,14 @@ function delay(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
+async function verify(address) {
+  try {
+    await hre.run('verify:verify', { address });
+  } catch (error) {
+    console.log('ignoring supposed verify "error"');
+  }
+}
+
 module.exports = {
   mocha: {
     timeout: 100000000000
@@ -100,7 +104,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 10000,
+            runs: 1000000,
             details: { yul: true }
           },
           evmVersion: 'cancun'

@@ -8,17 +8,21 @@ import '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 contract TruthToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, Ownable2StepUpgradeable, UUPSUpgradeable {
-  function initialize(string calldata name, uint256 tokenSupply) public initializer {
+  function initialize(string calldata name, string calldata symbol, uint256 supply) public initializer {
     __Ownable_init(msg.sender);
     __Ownable2Step_init();
     __UUPSUpgradeable_init();
-    __ERC20_init(name, name);
+    __ERC20_init(name, symbol);
     __ERC20Permit_init(name);
-    _mint(msg.sender, tokenSupply * 10 ** decimals());
+    _mint(msg.sender, supply * 10 ** decimals());
   }
 
   function decimals() public pure override returns (uint8) {
     return 10;
+  }
+
+  function renounceOwnership() public view override onlyOwner {
+    revert('Disabled');
   }
 
   function _authorizeUpgrade(address) internal override onlyOwner {}

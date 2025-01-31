@@ -20,36 +20,43 @@
 
 ## Setup
 - do `npm i`
-- ensure `authors.json` includes the correct authors for the network
-- Create a `.env` file with the following entries:
-```
-MAINNET_ALCHEMY_OR_INFURA_URL
-SEPOLIA_ALCHEMY_OR_INFURA_URL
-SEPOLIA_DEPLOYER_PRIVATE_KEY
-ETHERSCAN_API_KEY
-LEDGER_MAINNET_DEPLOYER_ADDRESS
-```
 
-### Format the code
+#### Format the code
 `npm run format`
 
-### Run tests (includes gas report)
+#### Run tests (includes gas report)
 `npm run test`
 
-### Run coverage
+#### Run coverage
 `npm run coverage`
 
-### Check contract sizes
+#### Check contract sizes
 `npx hardhat size-contracts`
 
-### Deploy Truth Token
-`npx hardhat --network <network> deploy token`
+## Deployment
 
-### Upgrade Truth Token
+### Setup
+- ensure `authors.json` includes the correct authors for the network
+- Create a `.env` file with the following entries as required:
+```
+ETHERSCAN_API_KEY
+
+SEPOLIA_ALCHEMY_OR_INFURA_URL
+SEPOLIA_DEPLOYER_PRIVATE_KEY (or SEPOLIA_DEPLOYER_LEDGER_ADDRESS)
+
+MAINNET_ALCHEMY_OR_INFURA_URL
+MAINNET_DEPLOYER_PRIVATE_KEY (or MAINNET_DEPLOYER_LEDGER_ADDRESS)
+```
+Note: when deploying on mainnet the contract `--owner` address must be specified (optional on Sepolia, owner defaults to the deployer account)
+
+#### Deploy Truth Token
+`npx hardhat --network <network> deploy token [--owner]`
+
+#### Upgrade Truth Token
 `npx hardhat --network <network> upgrade token <token address>`
 
-### Deploy Truth Bridge
-`npx hardhat --network <network> deploy bridge <token address>`
+#### Deploy Truth Bridge
+`npx hardhat --network <network> deploy bridge <token address> [--owner]`
 
-### Upgrade Truth Bridge
+#### Upgrade Truth Bridge
 `npx hardhat --network <network> upgrade bridge <bridge address>`

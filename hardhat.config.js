@@ -12,6 +12,7 @@ const TOKEN_SUPPLY = 100000000000n;
 task('deploy')
   .addPositionalParam('contractType')
   .addOptionalPositionalParam('tokenAddress')
+  .addOptionalParam('owner')
   .setAction(async (args, hre) => {
     await hre.run('compile');
     const {
@@ -22,7 +23,7 @@ task('deploy')
     const [signer] = await ethers.getSigners();
     const signerBalance = await ethers.provider.getBalance(signer.address);
     const contractName = getContractName(args.contractType);
-    const initArgs = getInitArgs(args, network);
+    const initArgs = getInitArgs(args, network, signer);
 
     console.log(`\nDeploying ${contractName} on ${network} using account ${signer.address}...`);
     const contractFactory = await ethers.getContractFactory(contractName);
@@ -60,9 +61,21 @@ task('upgrade')
     await verify(await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
   });
 
-function getInitArgs(args, network) {
+function getInitArgs(args, network, signer) {
+  let owner;
+
+  if (args.owner === undefined) {
+    if (network === 'mainnet') {
+      console.log('\nMust specify "--owner" for mainnet, exiting.');
+      process.exit(1);
+    } else {
+      owner = signer.address;
+      console.log(`\nNo owner specified, owner will be deployer: ${owner}`);
+    }
+  } else owner = args.owner;
+
   if (args.contractType === 'token') {
-    return [TOKEN_NAME, TOKEN_SYMBOL, TOKEN_SUPPLY];
+    return [TOKEN_NAME, TOKEN_SYMBOL, TOKEN_SUPPLY, owner];
   } else if (args.contractType === 'bridge') {
     const authors = require('./authors.json')[network];
     return [
@@ -70,7 +83,8 @@ function getInitArgs(args, network) {
       authors.map(author => author.ethAddress),
       authors.map(author => '0x' + author.ethUncompressedPublicKey.slice(4, 68)),
       authors.map(author => '0x' + author.ethUncompressedPublicKey.slice(68, 132)),
-      authors.map(author => author.t2PublicKey)
+      authors.map(author => author.t2PublicKey),
+      owner
     ];
   } else {
     throw new Error(`Invalid contract: ${contract}`);
@@ -120,7 +134,10 @@ module.exports = {
     },
     sepolia: {
       url: process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL || '',
-      accounts: [process.env.SEPOLIA_DEPLOYER_PRIVATE_KEY || '0000000000000000000000000000000000000000000000000000000000000000'],
+      accounts: process.env.SEPOLIA_DEPLOYER_PRIVATE_KEY ? [process.env.SEPOLIA_DEPLOYER_PRIVATE_KEY] : undefined,
+      ledgerAccounts: process.env.SEPOLIA_DEPLOYER_PRIVATE_KEY
+        ? undefined
+        : [process.env.SEPOLIA_DEPLOYER_LEDGER_ADDRESS || '0x0000000000000000000000000000000000000000'],
       type: 2,
       maxFeePerGas: 20000000000, // 20 Gwei
       maxPriorityFeePerGas: 2000000000, // 2 Gwei
@@ -129,7 +146,10 @@ module.exports = {
     },
     mainnet: {
       url: process.env.MAINNET_ALCHEMY_OR_INFURA_URL || '',
-      ledgerAccounts: [process.env.LEDGER_MAINNET_DEPLOYER_ADDRESS || '0000000000000000000000000000000000000000000000000000000000000000'],
+      accounts: process.env.MAINNET_DEPLOYER_PRIVATE_KEY ? [process.env.MAINNET_DEPLOYER_PRIVATE_KEY] : undefined,
+      ledgerAccounts: process.env.MAINNET_DEPLOYER_PRIVATE_KEY
+        ? undefined
+        : [process.env.MAINNET_DEPLOYER_LEDGER_ADDRESS || '0x0000000000000000000000000000000000000000'],
       type: 2,
       maxFeePerGas: 30000000000, // 30 Gwei
       maxPriorityFeePerGas: 2000000000, // 2 Gwei

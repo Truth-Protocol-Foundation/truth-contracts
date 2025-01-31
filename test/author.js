@@ -28,8 +28,8 @@ describe('Author Functions', async () => {
     await init(numAuthors);
     [owner, newAuthor, prospectiveAuthor] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION);
-    bridge = await deployTruthBridge(truth);
+    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
+    bridge = await deployTruthBridge(truth, owner);
     senderAuthor = authors[0].account;
     existingAuthor = authors[1];
     newAuthor = toAuthorAccount(newAuthor);
@@ -178,8 +178,8 @@ describe('Author Functions', async () => {
         expect(await bridge.idToT1Address(nextAuthorId)).to.equal(newAuthor.t1Address);
 
         // The author has been added but is not active
-        expect(activeAuthorsBefore, await bridge.numActiveAuthors());
-        expect(await bridge.authorIsActive(nextAuthorId), false);
+        expect(activeAuthorsBefore).to.equal(await bridge.numActiveAuthors());
+        expect(await bridge.authorIsActive(nextAuthorId)).to.equal(false);
 
         // Publishing a root containing a confirmation from the new author activates the author
         rootHash = randomBytes32();

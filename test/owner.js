@@ -7,8 +7,8 @@ describe('Owner Functions', async () => {
     await init(5);
     [owner, newOwner, otherAccount] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION);
-    bridge = await deployTruthBridge(truth);
+    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
+    bridge = await deployTruthBridge(truth, owner);
   });
 
   context('Transferring Ownership', async () => {
@@ -118,7 +118,8 @@ describe('Owner Functions', async () => {
         t1Addresses: authors.map(author => author.t1Address),
         t1PubKeysLHS: authors.map(author => author.t1PubKeyLHS),
         t1PubKeysRHS: authors.map(author => author.t1PubKeyRHS),
-        t2PubKeys: authors.map(author => author.t2PubKey)
+        t2PubKeys: authors.map(author => author.t2PubKey),
+        owner: owner.address
       };
     }
 
@@ -126,7 +127,7 @@ describe('Owner Functions', async () => {
 
     context('succeeds', async () => {
       it('with the correct arguments', async () => {
-        const newBridge = await deployTruthBridge(truth);
+        const newBridge = await deployTruthBridge(truth, owner);
         initVals = initialValues();
 
         for (i = 0; i < numAuthors; i++) {
@@ -141,12 +142,14 @@ describe('Owner Functions', async () => {
 
         expect(await newBridge.numActiveAuthors()).to.equal(numAuthors);
         expect(await newBridge.nextAuthorId()).to.equal(numAuthors + 1);
+        expect(await newBridge.truth()).to.equal(initVals.truth);
+        expect(await newBridge.owner()).to.equal(initVals.owner);
       });
     });
 
     context('fails', async () => {
       async function deployAndCatchInitError(expectedError) {
-        const initArgs = [initVals.truth, initVals.t1Addresses, initVals.t1PubKeysLHS, initVals.t1PubKeysRHS, initVals.t2PubKeys];
+        const initArgs = [initVals.truth, initVals.t1Addresses, initVals.t1PubKeysLHS, initVals.t1PubKeysRHS, initVals.t2PubKeys, initVals.owner];
         let actualError = '';
         try {
           await upgrades.deployProxy(await ethers.getContractFactory('TruthBridge'), initArgs, { kind: 'uups' });
@@ -210,6 +213,11 @@ describe('Owner Functions', async () => {
         initVals.t2PubKeys.splice(-2, 2);
         await deployAndCatchInitError('NotEnoughAuthors');
       });
+
+      it('when the owner is empty', async () => {
+        initVals.owner = ZERO_ADDRESS;
+        await deployAndCatchInitError('OwnableInvalidOwner');
+      });
     });
   });
 
@@ -220,13 +228,14 @@ describe('Owner Functions', async () => {
         authors.map(author => author.t1Address),
         authors.map(author => author.t1PubKeyLHS),
         authors.map(author => author.t1PubKeyRHS),
-        authors.map(author => author.t2PubKey)
+        authors.map(author => author.t2PubKey),
+        owner.address
       ];
       await expect(bridge.initialize(...initArgs)).to.be.reverted;
     });
 
     it('Cannot reinitialize the truth token', async () => {
-      await expect(truth.initialize('Truth2', 'TRU2', 1234567n)).to.be.reverted;
+      await expect(truth.initialize('Truth2', 'TRU2', 1234567n, owner.address)).to.be.reverted;
     });
   });
 

@@ -68,13 +68,14 @@ async function createTreeAndPublishRoot(bridge, owner, truth, amount) {
   return merkleTree;
 }
 
-async function deployTruthBridge(truth) {
+async function deployTruthBridge(truth, owner) {
   const initArgs = [
     truth.address,
     authors.map(author => author.t1Address),
     authors.map(author => author.t1PubKeyLHS),
     authors.map(author => author.t1PubKeyRHS),
-    authors.map(author => author.t2PubKey)
+    authors.map(author => author.t2PubKey),
+    owner.address
   ];
   const contract = await ethers.getContractFactory('TruthBridge');
   const bridge = await upgrades.deployProxy(contract, initArgs, { kind: 'uups' });
@@ -82,11 +83,11 @@ async function deployTruthBridge(truth) {
   return bridge;
 }
 
-async function deployTruthToken(supply) {
+async function deployTruthToken(supply, owner) {
   const contract = await ethers.getContractFactory('TruthToken');
   const name = 'Truth';
   const symbol = 'TRU';
-  const token = await upgrades.deployProxy(contract, [name, symbol, supply], { kind: 'uups' });
+  const token = await upgrades.deployProxy(contract, [name, symbol, supply, owner.address], { kind: 'uups' });
   token.address = await token.getAddress();
   return token;
 }

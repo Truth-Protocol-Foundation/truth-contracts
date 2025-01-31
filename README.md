@@ -50,13 +50,14 @@ MAINNET_DEPLOYER_PRIVATE_KEY (or MAINNET_DEPLOYER_LEDGER_ADDRESS)
 Note: when deploying on mainnet the contract `--owner` address must be specified (optional on Sepolia, owner defaults to the deployer account)
 
 #### Deploy Truth Token
-`npx hardhat --network <network> deploy token [--owner]`
+`npx hardhat deploy token [--owner <owner_address>] --network <network>`
 
 #### Upgrade Truth Token
-`npx hardhat --network <network> upgrade token <token address>`
+`npx hardhat upgrade token <token_address> --network <network>`
 
 #### Deploy Truth Bridge
-`npx hardhat --network <network> deploy bridge <token address> [--owner]`
+`npx hardhat deploy bridge --token <token_address> --owner <owner_address> --network <network>`
 
 #### Upgrade Truth Bridge
-`npx hardhat --network <network> upgrade bridge <bridge address>`
+`npx hardhat upgrade bridge <bridge_address> --network <network>`
+

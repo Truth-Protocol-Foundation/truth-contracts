@@ -11,7 +11,7 @@ const TOKEN_SUPPLY = 100000000000n;
 
 task('deploy')
   .addPositionalParam('contractType')
-  .addOptionalPositionalParam('tokenAddress')
+  .addOptionalParam('token')
   .addOptionalParam('owner')
   .setAction(async (args, hre) => {
     await hre.run('compile');
@@ -79,7 +79,7 @@ function getInitArgs(args, network, signer) {
   } else if (args.contractType === 'bridge') {
     const authors = require('./authors.json')[network];
     return [
-      args.tokenAddress,
+      args.token,
       authors.map(author => author.ethAddress),
       authors.map(author => '0x' + author.ethUncompressedPublicKey.slice(4, 68)),
       authors.map(author => '0x' + author.ethUncompressedPublicKey.slice(68, 132)),

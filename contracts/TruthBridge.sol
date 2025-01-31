@@ -83,9 +83,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     address[] calldata t1Addresses,
     bytes32[] calldata t1PubKeysLHS,
     bytes32[] calldata t1PubKeysRHS,
-    bytes32[] calldata t2PubKeys
+    bytes32[] calldata t2PubKeys,
+    address owner_
   ) public initializer {
-    __Ownable_init(msg.sender);
+    __Ownable_init(owner_);
     __Ownable2Step_init();
     __Pausable_init();
     __ReentrancyGuard_init();

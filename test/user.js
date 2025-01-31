@@ -21,17 +21,19 @@ describe('User Functions', async () => {
     const numAuthors = 6;
     await init(numAuthors);
     [owner, user] = getAccounts();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION);
-    bridge = await deployTruthBridge(truth);
+    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
+    bridge = await deployTruthBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);
   });
 
   context('Truth token', async () => {
     it('confirm setup', async () => {
-      expect(await truth.name(), 'Truth');
-      expect(await truth.symbol(), 'TRU');
-      expect(await truth.decimals(), 10n);
-      expect(await truth.totalSupply(), 1000000000000000000000n);
+      expect(await truth.name()).to.equal('Truth');
+      expect(await truth.symbol()).to.equal('TRU');
+      expect(await truth.decimals()).to.equal(10n);
+      expect(await truth.totalSupply()).to.equal(1000000000000000000000n);
+      expect(await truth.owner()).to.equal(owner.address);
+      expect(await truth.totalSupply()).to.equal(await truth.balanceOf(owner.address));
     });
   });
 
@@ -98,7 +100,7 @@ describe('User Functions', async () => {
 
       it('attempting to lift more tokens than the T2 limit', async () => {
         const MAX_LIFT_AMOUNT = 2n ** 128n - 1n;
-        const hugeSupplyToken = await deployTruthToken(999999999999999999999999999999n);
+        const hugeSupplyToken = await deployTruthToken(999999999999999999999999999999n, owner);
         await hugeSupplyToken.approve(bridge.address, MAX_LIFT_AMOUNT);
         await bridge.lift(hugeSupplyToken.address, t2PubKey, MAX_LIFT_AMOUNT);
         await hugeSupplyToken.approve(bridge.address, 1n);
@@ -153,8 +155,8 @@ describe('User Functions', async () => {
         const [lowerProof, lowerId] = await createLowerProof(bridge, truth, amount, owner);
 
         await expect(bridge.connect(user).claimLower(lowerProof)).to.emit(bridge, 'LogLowerClaimed').withArgs(lowerId);
-        expect(await truth.balanceOf(bridge.address), initialBridgeBalance - amount);
-        expect(await truth.balanceOf(owner.address), initialSenderBalance + amount);
+        expect(await truth.balanceOf(bridge.address)).to.equal(initialBridgeBalance - amount);
+        expect(await truth.balanceOf(owner.address)).to.equal(initialSenderBalance + amount);
       });
     });
 

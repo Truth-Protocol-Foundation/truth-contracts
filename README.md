@@ -1,9 +1,11 @@
 # Contracts
 
-## Token Contract Address
-```
-0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2
-```
+| Contract | Network | Environment | Address |
+|----------|---------|-------------|---------|
+| Truth Token | Mainnet | Production | [0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2](https://etherscan.io/address/0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2#readProxyContract) |
+| Truth Token | Sepolia | Development | [0x25560bD4FD693922450D99188Fab23472e59015F](https://sepolia.etherscan.io/address/0x25560bD4FD693922450D99188Fab23472e59015F#readProxyContract) |
+| Truth Bridge | Sepolia | Development | [0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E](https://sepolia.etherscan.io/address/0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E#readProxyContract) |
+
 
 ## 1. Truth Token (`TRU`)
 - Standard [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token with a total supply of 100,000,000,000 tokens of 10 decimals.
@@ -55,14 +57,13 @@ MAINNET_DEPLOYER_PRIVATE_KEY (or MAINNET_DEPLOYER_LEDGER_ADDRESS)
 Note: when deploying on mainnet the contract `--owner` address must be specified (optional on Sepolia, owner defaults to the deployer account)
 
 #### Deploy Truth Token
-`npx hardhat deploy token [--owner <owner_address>] --network <network>`
+`npx hardhat deploy token [--owner owner_address] --network <network>`
 
 #### Upgrade Truth Token
 `npx hardhat upgrade token <token_address> --network <network>`
 
 #### Deploy Truth Bridge
-`npx hardhat deploy bridge --token <token_address> --owner <owner_address> --network <network>`
+`npx hardhat deploy bridge --token <token_address> [--owner owner_address] --network <network>`
 
 #### Upgrade Truth Bridge
 `npx hardhat upgrade bridge <bridge_address> --network <network>`
-

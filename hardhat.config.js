@@ -32,9 +32,9 @@ task('deploy')
     const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
     console.log(`\nDeployed ${contractName} at ${proxyAddress} for ${cost} ETH\n`);
 
-    await delay(20);
-    await verify(proxyAddress);
+    await delay(30);
     await verify(await upgrades.erc1967.getImplementationAddress(proxyAddress));
+    await verify(proxyAddress);
   });
 
 task('upgrade')

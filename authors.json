@@ -1,5 +1,5 @@
 {
-  "sepolia": [
+  "dev": [
     {
       "ethAddress": "0xB43b199F956016C6E8437726c42F95B9B44f6c98",
       "ethUncompressedPublicKey": "0x04376fdd0add4a5ab1c3536422dd8647b729ad5d35ebeae5358fd54ac2ac7ce7d25d4afcdeb6596aaa3f15b9e9e615ded91a8ec8f722d8efe53155908f7e3f60f4",
@@ -24,6 +24,33 @@
       "ethAddress": "0x58f272b4F59d8E28954cA7FBE19E3C5D8F52F4a7",
       "ethUncompressedPublicKey": "0x041473964134e3f5603ccb563dbafafff81e1047c7d7c8cd1cd62cd033f43697efc6d062cdf236d4af1f7d0b4abcac590938add7d7b114cacb435db364bc93f4fc",
       "t2PublicKey": "0x8af997028297e0b69be1bf436ac3a6dec6438badfdb281e637caff3c54d23642"
+    }
+  ],
+  "testnet": [
+    {
+      "ethAddress": "0xfA61F1aECB01E7569DED655830991D1a81715a63",
+      "ethUncompressedPublicKey": "0x04592d0ade0996f68f2144043543d96e7cab45067c843e63619bd80aa0babd0f7bdb73e30d4f93928779ae926316ffb141a5bd4b08b00a5cc6b92200811e55038c",
+      "t2PublicKey": "0x6a1e7e4df2f9eb44c28cb783284cf9ca7f82ff9db0a45b5e870f088083afcb2b"
+    },
+    {
+      "ethAddress": "0xdCb1EE2698d75122A5f515Fc0008C315a5f985AE",
+      "ethUncompressedPublicKey": "0x0455f69aa6f7f7e780f550eae0fdebd6be93d465b8e20ff4633d4ae8ec54d24ad89bbb15fad89e609587ae61b2aac6ec56ee996e49b925062e48f227cbb1f9be3d",
+      "t2PublicKey": "0xdea9560dbdc1371c64e9a1cd7a34b2f3f7cc392ae1b1a42377b06c697ba81a20"
+    },
+    {
+      "ethAddress": "0x59c14ea597De4e9104ED54d5e1319fe675c38C9b",
+      "ethUncompressedPublicKey": "0x04e5c6b4372f83d6931148a892a4d548eead399d77064e4200dec3cfee8233f59daadb7b536412b0fefdf954e9e902a22fa31b4dd07c2877e7fc0711c995bfc95d",
+      "t2PublicKey": "0x6014b9b73bebd99afb90dd17163b7416652f3be341da57b82418462eaf8dc404"
+    },
+    {
+      "ethAddress": "0xF5Cd702FfC63f217b4425FC1472a80161a00DB8f",
+      "ethUncompressedPublicKey": "0x04c5c1490a3b126036c862cc8e6dc7fef4b8d428d6b11813dc26c1d8e5ac54d3efafcf08b6306518f9d06e18a1a2ad724c67eab0b9e35fff926987ffc64fb19194",
+      "t2PublicKey": "0x3010823654b4e9d74b42269826080f92d2dc062864e11032d0ee2aa371267d55"
+    },
+    {
+      "ethAddress": "0xE12fb4a709a83F402f1C074DAd2ADf4cd42490d1",
+      "ethUncompressedPublicKey": "0x042283cd4d7e2901395cb7d7167960060c6754012d025c216fb2f8d333e14d9580c2f6a1bf666b6f7dd1d79b1c10d3d8d96f1afa776de162d8ff00007399aa96b1",
+      "t2PublicKey": "0x7803a61c895984f9c7a7e2900d26cdb8c558ee58e7df9845d7cd4600ef82ac44"
     }
   ],
   "mainnet": [

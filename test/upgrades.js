@@ -9,10 +9,14 @@ describe('Upgrade TruthToken', async () => {
   });
 
   context('Upgrading TruthToken', async () => {
-    it('should upgrade the contract and retain existing state', async () => {
+    it('should upgrade the contract symbol to TRUU and retain existing state', async () => {
       // Verify the original symbol
       const originalSymbol = await truth.symbol();
       expect(originalSymbol).to.equal('TRU');
+
+      // Verify the total supply remains the same
+      const originalTotalSupply = await truth.totalSupply();
+      expect(originalTotalSupply).to.equal(ONE_HUNDRED_BILLION * 10n ** 10n);
 
       // Verify the original owner
       const originalOwner = await truth.owner();
@@ -25,6 +29,10 @@ describe('Upgrade TruthToken', async () => {
       // Verify the new symbol after upgrade
       const newSymbol = await upgradedToken.symbol();
       expect(newSymbol).to.equal('TRUU');
+
+      // Verify the total supply remains the same
+      const totalSupply = await upgradedToken.totalSupply();
+      expect(totalSupply).to.equal(ONE_HUNDRED_BILLION * 10n ** 10n);
 
       // Verify the owner remains the same
       const newOwner = await upgradedToken.owner();

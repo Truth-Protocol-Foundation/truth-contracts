@@ -32,6 +32,7 @@ task('implementation')
 
 task('deploy')
   .addPositionalParam('contractType')
+  .addOptionalParam('env')
   .addOptionalParam('token')
   .addOptionalParam('owner')
   .setAction(async (args, hre) => {
@@ -98,7 +99,7 @@ function getInitArgs(args, network, signer) {
   if (args.contractType === 'token') {
     return [TOKEN_NAME, TOKEN_SYMBOL, TOKEN_SUPPLY, owner];
   } else if (args.contractType === 'bridge') {
-    const authors = require('./authors.json')[network];
+    const authors = require('./authors.json')[args.env];
     return [
       args.token,
       authors.map(author => author.ethAddress),

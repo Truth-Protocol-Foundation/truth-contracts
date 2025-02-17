@@ -6,8 +6,29 @@ require('hardhat-contract-sizer');
 require('dotenv').config();
 
 const TOKEN_NAME = 'Truth';
-const TOKEN_SYMBOL = 'TRU';
+const TOKEN_SYMBOL = 'TRUU';
 const TOKEN_SUPPLY = 100000000000n;
+
+task('implementation')
+  .addPositionalParam('contractType')
+  .setAction(async (args, hre) => {
+    await hre.run('compile');
+    const {
+      ethers,
+      network: { name: network }
+    } = hre;
+    const [signer] = await ethers.getSigners();
+    const signerBalance = await ethers.provider.getBalance(signer.address);
+    const contractName = getContractName(args.contractType);
+    console.log(`\nDeploying ${contractName} implementation on ${network} using account ${signer.address}...`);
+    const contractFactory = await ethers.getContractFactory(contractName);
+    const implementation = await contractFactory.deploy();
+    const impAddress = await implementation.getAddress();
+    const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
+    console.log(`\nDeployed ${contractName} implementation at ${impAddress} for ${cost} ETH\n`);
+    await delay(20);
+    await verify(impAddress);
+  });
 
 task('deploy')
   .addPositionalParam('contractType')

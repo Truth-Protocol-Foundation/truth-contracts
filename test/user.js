@@ -29,7 +29,7 @@ describe('User Functions', async () => {
   context('Truth token', async () => {
     it('confirm setup', async () => {
       expect(await truth.name()).to.equal('Truth');
-      expect(await truth.symbol()).to.equal('TRU');
+      expect(await truth.symbol()).to.equal('TRUU');
       expect(await truth.decimals()).to.equal(10n);
       expect(await truth.totalSupply()).to.equal(1000000000000000000000n);
       expect(await truth.owner()).to.equal(owner.address);

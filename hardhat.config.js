@@ -11,7 +11,7 @@ const TOKEN_SUPPLY = 100000000000n;
 
 task('deploy')
   .addPositionalParam('contractType')
-  .addParam('env', 'Environment name (Dev, Testnet, UAT..)')
+  .addOptionalParam('env')
   .addOptionalParam('token')
   .addOptionalParam('owner')
   .setAction(async (args, hre) => {

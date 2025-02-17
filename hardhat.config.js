@@ -26,7 +26,7 @@ task('deploy')
     const contractName = getContractName(args.contractType);
     const initArgs = getInitArgs(args, network, signer);
 
-    console.log(`\nDeploying ${contractName} on ${network} (${args.env}) using account ${signer.address}...`);
+    console.log(`\nDeploying ${contractName} on ${network} using account ${signer.address}...`);
     const contractFactory = await ethers.getContractFactory(contractName);
     const proxy = await upgrades.deployProxy(contractFactory, initArgs, { kind: 'uups' });
     const proxyAddress = await proxy.getAddress();

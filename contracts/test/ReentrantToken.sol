@@ -19,7 +19,7 @@ contract ReentrantToken is ERC20 {
 
   bytes private _proof;
   address private _token;
-  bytes32 private _t2PubKey;
+  bytes private _t2PubKey;
   uint256 private _amount;
   uint256 private _deadline;
   uint8 private _v;

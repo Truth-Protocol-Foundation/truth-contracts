@@ -3,7 +3,7 @@ const { MerkleTree } = require('merkletreejs');
 const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
 
-const EMPTY_32_BYTES = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const EMPTY_BYTES = '0x';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
@@ -273,7 +273,7 @@ module.exports = {
   deployTruthBridge,
   deployTruthToken,
   expect,
-  EMPTY_32_BYTES,
+  EMPTY_BYTES,
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,

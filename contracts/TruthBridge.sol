@@ -180,18 +180,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
-  function lift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
-    if (t2PubKey == 0) revert InvalidT2Key();
-    emit LogLifted(token, t2PubKey, _lift(token, amount));
+  function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
+    emit LogLifted(token, _checkT2PubKey(t2PubKey), _lift(token, amount));
   }
 
   /**
    * @dev lift variant accepting an ERC-2612 permit in place of prior approval.
    */
-  function lift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
-    if (t2PubKey == 0) revert InvalidT2Key();
+  function lift(address token, bytes calldata t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
-    emit LogLifted(token, t2PubKey, _lift(token, amount));
+    emit LogLifted(token, _checkT2PubKey(t2PubKey), _lift(token, amount));
   }
 
   /**
@@ -416,6 +414,11 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   function _toAddress(bytes memory t1PubKey) private pure returns (address) {
     return address(uint160(uint256(keccak256(t1PubKey))));
+  }
+
+  function _checkT2PubKey(bytes calldata t2PubKey) private pure returns (bytes32 checkedT2PubKey) {
+    if (t2PubKey.length != 32) revert InvalidT2Key();
+    checkedT2PubKey = bytes32(t2PubKey);
   }
 
   function _verifyConfirmations(bool isLower, bytes32 msgHash, bytes calldata confirmations) private {

@@ -1,22 +1,4 @@
-const {
-  createLowerProof,
-  createTreeAndPublishRoot,
-  deployTruthBridge,
-  deployTruthToken,
-  EMPTY_32_BYTES,
-  expect,
-  getAccounts,
-  getNumRequiredConfirmations,
-  getPermit,
-  getTransferAuthorization,
-  getUSDC,
-  init,
-  ONE_HUNDRED_BILLION,
-  ONE_USDC,
-  randomBytes32,
-  sendUSDC,
-  ZERO_ADDRESS
-} = require('./helper.js');
+const { deployTruthBridge, deployTruthToken, expect, getAccounts, getPermit, getUSDC, init, ONE_HUNDRED_BILLION, ONE_USDC, sendUSDC } = require('./helper.js');
 
 let bridge, truth, usdc, owner, relayer, user, t2PubKey;
 
@@ -42,22 +24,23 @@ describe('User Functions', async () => {
         await sendUSDC(user, amount);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         const { gasPrice } = await ethers.provider.getFeeData();
-        const expectedFee = await bridge.onRampCost(gasPrice);
-        await expect(bridge.connect(relayer).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s))
-          .to.emit(bridge, 'LogLiftedToPredictionMarket')
-          .withArgs(usdc.address, t2PubKey, amount - expectedFee);
+        // const expectedFee = await bridge.onRampCost(gasPrice);
+        await expect(bridge.connect(relayer).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s)).to.emit(bridge, 'LogLiftedToPredictionMarket');
+        // .withArgs(usdc.address, t2PubKey, amount - expectedFee);
       }
 
       it('in lifting tokens to the prediction market with a valid permit', async () => {
         const relayerBalanceBefore = await ethers.provider.getBalance(relayer.address);
-        for (i = 0; i < 10; i++) {
+        for (i = 0; i < 100; i++) {
           await doOnRamp();
         }
+
+        await bridge.connect(relayer).recoverCosts();
+
         const relayerBalanceAfter = await ethers.provider.getBalance(relayer.address);
-        await bridge.connect(relayer).recoupCosts();
-        const relayerBalanceRecouped = await ethers.provider.getBalance(relayer.address);
+        console.log(relayerBalanceBefore);
+        console.log(relayerBalanceAfter);
         console.log(relayerBalanceBefore - relayerBalanceAfter);
-        console.log(relayerBalanceBefore - relayerBalanceRecouped);
       });
     });
   });

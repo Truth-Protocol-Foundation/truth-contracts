@@ -13,7 +13,7 @@ interface ITruthBridge {
 
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;
-  function updateRelayerConfig(uint256 _onRampGasUse, uint256 _recoupOverheadBP, uint256 _recoupSlippageBP) external;
+  function setOnRampGas(uint256 onRampGas) external;
   function addAuthor(bytes calldata t1PubKey, bytes32 t2PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function removeAuthor(bytes32 t2PubKey, bytes calldata t1PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function publishRoot(bytes32 rootHash, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
@@ -22,7 +22,7 @@ interface ITruthBridge {
   function liftToPredictionMarket(address token, uint256 amount) external;
   function liftToPredictionMarket(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external;
-  function recoupCosts() external;
+  function recoverCosts() external;
   function claimLower(bytes calldata proof) external;
   function checkLower(
     bytes calldata proof
@@ -42,5 +42,4 @@ interface ITruthBridge {
   function confirmTransaction(bytes32 leafHash, bytes32[] calldata merklePath) external view returns (bool);
   function corroborate(uint32 t2TxId, uint256 expiry) external view returns (int8);
   function deriveT2PublicKey(address t1Address) external view returns (bytes32);
-  function onRampCost(uint256 gasPrice) external view returns (uint256);
 }

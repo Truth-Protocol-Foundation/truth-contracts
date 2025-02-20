@@ -4,11 +4,11 @@ const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
 
 // MAINNET
-const USDC__HOLDER = '0xC8e2C09A252ff6A41F82B4762bB282fD0CEA2280';
+const USDC_HOLDER = '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341';
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
 // SEPOLIA
-// const USDC__HOLDER = '0x1C27eAD3265239581C936d880c53b8a7E0590a9f';
+// const USDC_HOLDER = '0x1C27eAD3265239581C936d880c53b8a7E0590a9f';
 // const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
 
 const EMPTY_BYTES = '0x';
@@ -198,7 +198,7 @@ async function init(numAuthors, largeTree = false) {
     accounts.push(account);
   }
 
-  await owner.sendTransaction({ to: USDC__HOLDER, value: ethers.parseEther('10') });
+  await owner.sendTransaction({ to: USDC_HOLDER, value: ethers.parseEther('10') });
   usdc = new ethers.Contract(USDC_ADDRESS, require('../abi/USDC.js'), ethers.provider);
   usdc.address = await usdc.getAddress();
   const randomTxHash = randomHex(32);
@@ -240,9 +240,9 @@ function randomT2TxId() {
 }
 
 async function sendUSDC(recipient, amount) {
-  await impersonateAccount(USDC__HOLDER);
-  await usdc.connect(await ethers.getSigner(USDC__HOLDER)).transfer(recipient.address, amount);
-  await stopImpersonatingAccount(USDC__HOLDER);
+  await impersonateAccount(USDC_HOLDER);
+  await usdc.connect(await ethers.getSigner(USDC_HOLDER)).transfer(recipient.address, amount);
+  await stopImpersonatingAccount(USDC_HOLDER);
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);

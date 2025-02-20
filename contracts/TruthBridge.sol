@@ -11,11 +11,9 @@ pragma solidity 0.8.28;
  * Proxy upgradeable implementation utilising EIP-1822.
  */
 
- import 'hardhat/console.sol';
-
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
-import './interfaces/IUniswap.sol';
+import './interfaces/IUniswapV3Pool.sol';
 import './interfaces/IWETH9.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
@@ -35,7 +33,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
-  uint256 private constant BASIS_POINTS = 10000;
+  uint160 private constant SQRT_PRICE_LIMIT = 4295128740; // The minimum allowed sqrt price constant from Uniswap V3 + 1.
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
@@ -43,16 +41,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   // TODO: Use upgrade and run script to swap these constants:
 
   // MAINNET
-  IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
-  IUniswap private constant uniswap = IUniswap(0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af);
+  address private constant feed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+  address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
   address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
   // SEPOLIA
-  // IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x694AA1769357215DE4FAC081bf1f309aDC325306);
-  // IUniswap private constant uniswap = IUniswap(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
-  // address private constant usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
-  // IWETH9 private constant weth = IWETH9(0xfff9976782d46cc05630d1f6ebab18b2324d6b14);
+  // address private constant feed = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
+  // address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
+  // address private constant usdc = 0x3289680dD4d6C10bb19b899729cda5eEF58AEfF1;
+  // address private constant weth = 0xfff9976782d46cc05630d1f6ebab18b2324d6b14;
 
   mapping(uint256 => bool) public isAuthor;
   mapping(uint256 => bool) public authorIsActive;
@@ -64,13 +62,11 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   mapping(uint256 => bool) public isUsedT2TxId;
   mapping(bytes32 => bool) public hasLowered;
   mapping(address => bool) public isRelayer;
-  mapping(address => uint256) public usdcFeeBalance;
+  mapping(address => int256) public relayerUSDC;
 
-  uint256 public recoupSlippageBP;
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
-  uint256 public onRampGasUse;
-  uint256 public recoupOverheadBP;
+  uint256 public onRampGas;
   address public truth;
 
   error AddressMismatch(); // 0x4cd87fb5
@@ -78,6 +74,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
   error FeedFailure();
+  error InvalidAmount();
+  error InvalidCallback();
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
   error InvalidT2Key(); // 0xf4fc87a4
@@ -88,6 +86,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error MissingTruth(); // 0xd1585e94
   error NotAnAuthor(); // 0x157b0512
   error NotEnoughAuthors(); // 0x3a6a875c
+  error NothingToRecover();
   error RelayerOnly();
   error RootHashIsUsed(); // 0x2c8a3b6e
   error T1AddressInUse(address); // 0x78f22dd1
@@ -119,12 +118,11 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
+    onRampGas = 107500;
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
-    updateRelayerConfig(108350, 100, 200);
-    IERC20(usdc).approve(address(uniswap), type(uint256).max);
   }
 
   function pause() external onlyOwner whenNotPaused {
@@ -147,10 +145,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     emit LogRelayerDeregistered(relayer);
   }
 
-  function updateRelayerConfig(uint256 _onRampGasUse, uint256 _recoupOverheadBP, uint256 _recoupSlippageBP) public onlyOwner {
-    if (_onRampGasUse > 0) onRampGasUse = _onRampGasUse;
-    if (_recoupOverheadBP > 0) recoupOverheadBP = _recoupOverheadBP;
-    if (_recoupSlippageBP > 0) recoupSlippageBP = _recoupSlippageBP;
+  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
+    onRampGas = _onRampGas;
   }
 
   /**
@@ -260,64 +256,35 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    */
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
     if (!isRelayer[msg.sender]) revert RelayerOnly();
-    uint256 txCost = onRampCost(tx.gasprice);
-    if (txCost > amount) revert LiftFailed();
-
-    IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
-    IERC20(usdc).safeTransferFrom(user, address(this), amount);
-
     unchecked {
-      usdcFeeBalance[msg.sender] += txCost;
+      uint256 txCost = (_ethUSD() * tx.gasprice * onRampGas) / 1e20;
+      if (txCost >= amount) revert LiftFailed();
+      IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
+      IERC20(usdc).transferFrom(user, address(this), amount);
+      relayerUSDC[msg.sender] += int256(txCost);
       emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - txCost);
     }
   }
 
-  /**
-   * @dev returns the current on-ramp completion fee
-   */
-  function onRampCost(uint256 gasPrice) public view returns (uint256) {
-    uint256 oneEthInUsd = uint256(IChainlinkV3Aggregator(ethUsdFeed).latestAnswer());
-    if (oneEthInUsd == 0) revert FeedFailure();
-    return (gasPrice * onRampGasUse * oneEthInUsd * (BASIS_POINTS + recoupOverheadBP)) / 1e24;
+  function recoverCosts() external {
+    int256 usdcAmount = relayerUSDC[msg.sender];
+    if (usdcAmount == 0) revert NothingToRecover();
+    relayerUSDC[msg.sender] = 0;
+    IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, SQRT_PRICE_LIMIT, '');
+    uint256 wethReceived = IERC20(weth).balanceOf(address(this));
+    if (wethReceived < (uint256(usdcAmount) * 9850 * 1e16) / _ethUSD()) revert InvalidAmount();
+    IWETH9(weth).withdraw(wethReceived);
+    (bool success, ) = msg.sender.call{ value: wethReceived }('');
+    if (!success) revert TransferFailed();
   }
 
-  function recoupCosts() external  {
-    uint256 usdcAmount = usdcFeeBalance[msg.sender];
-    usdcFeeBalance[msg.sender] = 0;
-
-    uint256 oneEthInUsd = uint256(IChainlinkV3Aggregator(ethUsdFeed).latestAnswer());
-    if (oneEthInUsd == 0) revert FeedFailure();
-    uint256 expectedEth = (usdcAmount * 1e20) / oneEthInUsd;
-
-    uint256 minEth = (expectedEth * (BASIS_POINTS - recoupSlippageBP)) / BASIS_POINTS;
-
-    bytes memory commands = abi.encodePacked(uint8(0x10)); // V4 SWAP
-    bytes[] memory inputs = new bytes[](1);
-
-    bytes memory actions = abi.encodePacked(
-      uint8(0x06), //SWAP_EXACT_INPUT_SINGLE
-      uint8(0x0c), //SETTLE_ALL
-      uint8(0x0f) //TAKE_ALL
-    );
-
-    bytes[] memory params = new bytes[](3);
-
-    params[0] = abi.encode(
-      IUniswap.ExactInputSingleParams({
-        key: IUniswap.PoolKey(usdc, weth, 500, 1, ''),
-        zeroForOne: true,
-        amountIn: usdcAmount,
-        amountOutMinimum: minEth,
-        sqrtPriceLimitX96: uint160(0),
-        hookData: ''
-      })
-    );
-
-    params[1] = abi.encode(usdc, usdcAmount);
-    params[2] = abi.encode(weth, minEth);
-    inputs[0] = abi.encode(actions, params);
-    uniswap.execute(commands, inputs);
+  function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
+    if (msg.sender != pool) revert InvalidCallback();
+    IERC20(usdc).transfer(msg.sender, uint256(amount0Delta));
   }
+
+  // Allow the contract to receive ETH (from WETH withdrawal).
+  receive() external payable {}
 
   /** @dev Checks a lower proof. Returns the details, proof validity, and claim status.
    * For unclaimed lowers, if the required confirmations exceeds those provided the proof will need to be regenerated.
@@ -587,5 +554,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     } while (confirmationsIndex <= numConfirmations);
 
     revert BadConfirmations();
+  }
+
+  function _ethUSD() private view returns (uint256 oneEthInUsd) {
+    oneEthInUsd = uint256(IChainlinkV3Aggregator(feed).latestAnswer());
+    if (oneEthInUsd == 0) revert FeedFailure();
   }
 }

@@ -38,7 +38,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
 
-  // TODO: Use upgrade and run script to swap these constants:
+  // TODO: Use upgrade and run script to swap address constants
+  // TODO: Adjust for rate on Sepolia
 
   // MAINNET
   address private constant feed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
@@ -48,9 +49,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   // SEPOLIA
   // address private constant feed = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
-  // address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-  // address private constant usdc = 0x3289680dD4d6C10bb19b899729cda5eEF58AEfF1;
-  // address private constant weth = 0xfff9976782d46cc05630d1f6ebab18b2324d6b14;
+  // address private constant pool = 0x3289680dD4d6C10bb19b899729cda5eEF58AEfF1;
+  // address private constant usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+  // address private constant weth = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
 
   mapping(uint256 => bool) public isAuthor;
   mapping(uint256 => bool) public authorIsActive;
@@ -118,7 +119,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    onRampGas = 107500;
+    onRampGas = 107000;
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;

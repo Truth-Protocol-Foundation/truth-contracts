@@ -7,13 +7,11 @@ const coder = ethers.AbiCoder.defaultAbiCoder();
 const USDC__HOLDER = '0xC8e2C09A252ff6A41F82B4762bB282fD0CEA2280';
 const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
-
 // SEPOLIA
 // const USDC__HOLDER = '0x1C27eAD3265239581C936d880c53b8a7E0590a9f';
 // const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
 
-
-const EMPTY_32_BYTES = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const EMPTY_BYTES = '0x';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
@@ -98,7 +96,7 @@ async function deployTruthBridge(truth, owner) {
 async function deployTruthToken(supply, owner) {
   const contract = await ethers.getContractFactory('TruthToken');
   const name = 'Truth';
-  const symbol = 'TRU';
+  const symbol = 'TRUU';
   const token = await upgrades.deployProxy(contract, [name, symbol, supply, owner.address], { kind: 'uups' });
   token.address = await token.getAddress();
   return token;
@@ -294,7 +292,7 @@ module.exports = {
   deployTruthBridge,
   deployTruthToken,
   expect,
-  EMPTY_32_BYTES,
+  EMPTY_BYTES,
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,

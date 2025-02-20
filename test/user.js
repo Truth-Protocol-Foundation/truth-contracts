@@ -3,7 +3,7 @@ const {
   createTreeAndPublishRoot,
   deployTruthBridge,
   deployTruthToken,
-  EMPTY_32_BYTES,
+  EMPTY_BYTES,
   expect,
   getAccounts,
   getNumRequiredConfirmations,
@@ -29,7 +29,7 @@ describe('User Functions', async () => {
   context('Truth token', async () => {
     it('confirm setup', async () => {
       expect(await truth.name()).to.equal('Truth');
-      expect(await truth.symbol()).to.equal('TRU');
+      expect(await truth.symbol()).to.equal('TRUU');
       expect(await truth.decimals()).to.equal(10n);
       expect(await truth.totalSupply()).to.equal(1000000000000000000000n);
       expect(await truth.owner()).to.equal(owner.address);
@@ -87,12 +87,12 @@ describe('User Functions', async () => {
       });
 
       it('attempting to lift tokens without supplying a T2 public key', async () => {
-        await expect(bridge.lift(truth.address, EMPTY_32_BYTES, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+        await expect(bridge.lift(truth.address, EMPTY_BYTES, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
       });
 
       it('attempting to lift tokens with a permit but without supplying a T2 public key', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.lift(truth.address, EMPTY_32_BYTES, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
+        await expect(bridge.lift(truth.address, EMPTY_BYTES, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,
           'InvalidT2Key'
         );

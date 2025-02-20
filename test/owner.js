@@ -235,7 +235,7 @@ describe('Owner Functions', async () => {
     });
 
     it('Cannot reinitialize the truth token', async () => {
-      await expect(truth.initialize('Truth2', 'TRU2', 1234567n, owner.address)).to.be.reverted;
+      await expect(truth.initialize('Truth2', 'TRUU2', 1234567n, owner.address)).to.be.reverted;
     });
   });
 

@@ -128,9 +128,9 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      // forking: {
-      //   url: process.env.MAINNET_ALCHEMY_OR_INFURA_URL || ''
-      // }
+      forking: {
+        url: process.env.MAINNET_ALCHEMY_OR_INFURA_URL || ''
+      }
     },
     sepolia: {
       url: process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL || '',

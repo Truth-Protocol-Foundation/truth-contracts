@@ -11,6 +11,8 @@ pragma solidity 0.8.28;
  * Proxy upgradeable implementation utilising EIP-1822.
  */
 
+ import 'hardhat/console.sol';
+
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
 import './interfaces/IUniswap.sol';
@@ -41,15 +43,15 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   // TODO: Use upgrade and run script to swap these constants:
 
   // MAINNET
-  // IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
-  // IUniswap private constant uniswap = IUniswap(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
-  // address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-  // IWETH9 private constant weth = IWETH9(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+  IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419);
+  IUniswap private constant uniswap = IUniswap(0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af);
+  address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+  address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
   // SEPOLIA
-  IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x694AA1769357215DE4FAC081bf1f309aDC325306);
-  IUniswap private constant uniswap = IUniswap(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
-  address private constant usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+  // IChainlinkV3Aggregator private constant ethUsdFeed = IChainlinkV3Aggregator(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+  // IUniswap private constant uniswap = IUniswap(0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD);
+  // address private constant usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
   // IWETH9 private constant weth = IWETH9(0xfff9976782d46cc05630d1f6ebab18b2324d6b14);
 
   mapping(uint256 => bool) public isAuthor;
@@ -281,44 +283,42 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     return (gasPrice * onRampGasUse * oneEthInUsd * (BASIS_POINTS + recoupOverheadBP)) / 1e24;
   }
 
-  function recoupCosts() external pure {
-    return;
-    // uint256 usdcAmount = usdcFeeBalance[msg.sender];
-    // usdcFeeBalance[msg.sender] = 0;
+  function recoupCosts() external  {
+    uint256 usdcAmount = usdcFeeBalance[msg.sender];
+    usdcFeeBalance[msg.sender] = 0;
 
-    // uint256 oneEthInUsd = uint256(IChainlinkV3Aggregator(ethUsdFeed).latestAnswer());
-    // if (oneEthInUsd == 0) revert FeedFailure();
-    // uint256 expectedEth = (usdcAmount * 1e20) / oneEthInUsd;
+    uint256 oneEthInUsd = uint256(IChainlinkV3Aggregator(ethUsdFeed).latestAnswer());
+    if (oneEthInUsd == 0) revert FeedFailure();
+    uint256 expectedEth = (usdcAmount * 1e20) / oneEthInUsd;
 
-    // uint256 minEth = (expectedEth * (BASIS_POINTS - recoupSlippageBP)) / BASIS_POINTS;
+    uint256 minEth = (expectedEth * (BASIS_POINTS - recoupSlippageBP)) / BASIS_POINTS;
 
-    // bytes memory commands = abi.encodePacked(uint8(0x10)); // V4 SWAP
-    // bytes[] memory inputs = new bytes[](1);
+    bytes memory commands = abi.encodePacked(uint8(0x10)); // V4 SWAP
+    bytes[] memory inputs = new bytes[](1);
 
-    // bytes memory actions = abi.encodePacked(
-    //   uint8(0x06), //SWAP_EXACT_INPUT_SINGLE
-    //   uint8(0x0c), //SETTLE_ALL
-    //   uint8(0x0f) //TAKE_ALL
-    // );
+    bytes memory actions = abi.encodePacked(
+      uint8(0x06), //SWAP_EXACT_INPUT_SINGLE
+      uint8(0x0c), //SETTLE_ALL
+      uint8(0x0f) //TAKE_ALL
+    );
 
+    bytes[] memory params = new bytes[](3);
 
-    // bytes[] memory params = new bytes[](3);
+    params[0] = abi.encode(
+      IUniswap.ExactInputSingleParams({
+        key: IUniswap.PoolKey(usdc, weth, 500, 1, ''),
+        zeroForOne: true,
+        amountIn: usdcAmount,
+        amountOutMinimum: minEth,
+        sqrtPriceLimitX96: uint160(0),
+        hookData: ''
+      })
+    );
 
-    // params[0] = abi.encode(
-    //   IUniswap.ExactInputSingleParams({
-    //     key: IUniswap.PoolKey(address(0), usdc, 500, 1, ''),
-    //     zeroForOne: false,
-    //     amountIn: usdcAmount,
-    //     amountOutMinimum: minEth,
-    //     sqrtPriceLimitX96: 0,
-    //     hookData: ''
-    //   })
-    // );
-
-    // params[1] = abi.encode(usdc, usdcAmount);
-    // params[2] = abi.encode(address(0), minEth);
-    // inputs[0] = abi.encode(actions, params);
-    // uniswap.execute(commands, inputs);
+    params[1] = abi.encode(usdc, usdcAmount);
+    params[2] = abi.encode(weth, minEth);
+    inputs[0] = abi.encode(actions, params);
+    uniswap.execute(commands, inputs);
   }
 
   /** @dev Checks a lower proof. Returns the details, proof validity, and claim status.

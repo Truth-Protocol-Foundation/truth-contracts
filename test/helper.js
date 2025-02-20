@@ -1,7 +1,17 @@
-const { time } = require('@nomicfoundation/hardhat-network-helpers');
+const { impersonateAccount, stopImpersonatingAccount, time } = require('@nomicfoundation/hardhat-network-helpers');
 const { MerkleTree } = require('merkletreejs');
 const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
+
+// MAINNET
+const USDC__HOLDER = '0xC8e2C09A252ff6A41F82B4762bB282fD0CEA2280';
+const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+
+// SEPOLIA
+// const USDC__HOLDER = '0x1C27eAD3265239581C936d880c53b8a7E0590a9f';
+// const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
+
 
 const EMPTY_32_BYTES = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -9,11 +19,13 @@ const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
 const MIN_AUTHORS = 4;
 const ONE_HUNDRED_BILLION = 100000000000n;
+const ONE_USDC = 1000000n;
 
 let additionalTx = [];
 let accounts = [];
 let authors = [];
 let lowerId = 0;
+let usdc;
 
 async function createLowerProof(bridge, token, amount, recipient) {
   lowerId++;
@@ -133,12 +145,12 @@ async function getValidExpiry() {
   return (await getCurrentBlockTimestamp()) + EXPIRY_WINDOW;
 }
 
-async function getPermit(token, account, spender, amount) {
-  const deadline = Math.floor(Date.now() / 1000) + 3600;
+async function getPermit(token, account, spender, amount, deadline) {
+  deadline = deadline || Math.floor(Date.now() / 1000) + 3600;
 
   const domain = {
     name: await token.name(),
-    version: '1',
+    version: await token.version(),
     chainId: (await ethers.provider.getNetwork()).chainId,
     verifyingContract: token.address
   };
@@ -178,16 +190,19 @@ async function init(numAuthors, largeTree = false) {
 
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10') });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 50000000000n });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10') });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 50000000000n });
     accounts.push(account);
   }
 
+  await owner.sendTransaction({ to: USDC__HOLDER, value: ethers.parseEther('10') });
+  usdc = new ethers.Contract(USDC_ADDRESS, require('../abi/USDC.js'), ethers.provider);
+  usdc.address = await usdc.getAddress();
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
 }
@@ -224,6 +239,12 @@ const randomHex = (bytes = 32) => ethers.hexlify(ethers.randomBytes(bytes));
 
 function randomT2TxId() {
   return Math.floor(Math.random() * 2 ** 32);
+}
+
+async function sendUSDC(recipient, amount) {
+  await impersonateAccount(USDC__HOLDER);
+  await usdc.connect(await ethers.getSigner(USDC__HOLDER)).transfer(recipient.address, amount);
+  await stopImpersonatingAccount(USDC__HOLDER);
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);
@@ -277,20 +298,23 @@ module.exports = {
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,
-  getPermit,
   getConfirmations,
   getCurrentBlockTimestamp,
   getNumRequiredConfirmations,
+  getPermit,
   getSingleConfirmation,
+  getUSDC: () => usdc,
   getValidExpiry,
   increaseBlockTimestamp,
   init,
   MIN_AUTHORS,
   ONE_HUNDRED_BILLION,
+  ONE_USDC,
   printErrorCodes,
   randomBytes32,
   randomHex,
   randomT2TxId,
+  sendUSDC,
   strip_0x,
   toAuthorAccount,
   ZERO_ADDRESS

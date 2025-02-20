@@ -9,7 +9,7 @@
 | Truth Bridge | Sepolia | Public Testnet | [0xad36dB955A0C881A78842eE1C8e848a7238637e8](https://sepolia.etherscan.io/address/0xad36dB955A0C881A78842eE1C8e848a7238637e8#readProxyContract) |
 
 
-## 1. Truth Token (`TRU`)
+## 1. Truth Token (`TRUU`)
 - Standard [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token with a total supply of 100,000,000,000 tokens of 10 decimals.
 - Extended to include [ERC-2612](https://eips.ethereum.org/EIPS/eip-2612) permit-based approvals.
 - Upgradeable.
@@ -64,8 +64,14 @@ Note: when deploying on mainnet the contract `--owner` address must be specified
 #### Upgrade Truth Token
 `npx hardhat upgrade token <token_address> --network <network>`
 
+#### Deploy Truth Token Implementation
+`npx hardhat implementation token --network <network>`
+
 #### Deploy Truth Bridge
 `npx hardhat deploy bridge --token <token_address> [--owner owner_address] --network <network> --env <environment name>`
 
 #### Upgrade Truth Bridge
 `npx hardhat upgrade bridge <bridge_address> --network <network>`
+
+#### Deploy Truth Bridge Implementation
+`npx hardhat implementation bridge --network <network>`

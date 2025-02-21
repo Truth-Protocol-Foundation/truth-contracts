@@ -5,6 +5,9 @@ require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('dotenv').config();
 
+const FORK = process.env.FORK || 'mainnet';
+const FORKING_URL = FORK === 'sepolia' ? process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL : process.env.MAINNET_ALCHEMY_OR_INFURA_URL;
+
 const TOKEN_NAME = 'Truth';
 const TOKEN_SYMBOL = 'TRUU';
 const TOKEN_SUPPLY = 100000000000n;
@@ -151,7 +154,7 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MAINNET_ALCHEMY_OR_INFURA_URL || ''
+        url: FORKING_URL
       }
     },
     sepolia: {

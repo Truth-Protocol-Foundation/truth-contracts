@@ -2,14 +2,16 @@
 pragma solidity 0.8.28;
 
 /**
- * @dev Bridging contract between Truth Network and Ethereum.
+ * @dev Bridge between Truth Network and Ethereum.
  * Enables Author nodes to periodically publish T2 transactional state.
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
+ * Enables gasless completion of funds on-ramping via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
+import 'hardhat/console.sol';
 
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
@@ -33,25 +35,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
-  uint160 private constant SQRT_PRICE_LIMIT = 4295128740; // The minimum allowed sqrt price constant from Uniswap V3 + 1.
+  uint256 private constant ONE_USDC = 1e6;
+  uint160 private constant UNISWAP_SRPLX96 = 4295128739 + 1; // 1 over the minimum allowed sqrt price limit in Uniswap V3.
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
 
-  // TODO: Use upgrade and run script to swap address constants
-  // TODO: Adjust for rate on Sepolia
-
-  // MAINNET
   address private constant feed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
   address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
   address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-  // SEPOLIA
-  // address private constant feed = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
-  // address private constant pool = 0x3289680dD4d6C10bb19b899729cda5eEF58AEfF1;
-  // address private constant usdc = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
-  // address private constant weth = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
 
   mapping(uint256 => bool) public isAuthor;
   mapping(uint256 => bool) public authorIsActive;
@@ -134,22 +127,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     _unpause();
   }
 
-  function registerRelayer(address relayer) external onlyOwner {
-    if (isRelayer[relayer]) revert();
-    isRelayer[relayer] = true;
-    emit LogRelayerRegistered(relayer);
-  }
-
-  function deregisterRelayer(address relayer) external onlyOwner {
-    if (!isRelayer[relayer]) revert();
-    isRelayer[relayer] = false;
-    emit LogRelayerDeregistered(relayer);
-  }
-
-  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
-    onRampGas = _onRampGas;
-  }
-
   /**
    * @dev Enables authors to add a new author, permanently linking their T1 and T2 keys.
    * Author activation will occur upon the first confirmation received from them.
@@ -223,6 +200,31 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
+   * @dev Register a new relayer for proxy on-ramping
+   */
+  function registerRelayer(address relayer) external onlyOwner {
+    if (isRelayer[relayer]) revert();
+    isRelayer[relayer] = true;
+    emit LogRelayerRegistered(relayer);
+  }
+
+  /**
+   * @dev Deregister an existing relayer.
+   */
+  function deregisterRelayer(address relayer) external onlyOwner {
+    if (!isRelayer[relayer]) revert();
+    isRelayer[relayer] = false;
+    emit LogRelayerDeregistered(relayer);
+  }
+
+  /**
+   * @dev Set the gas for the on-ramp
+   */
+  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
+    onRampGas = _onRampGas;
+  }
+
+  /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
   function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
@@ -258,12 +260,13 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
     if (!isRelayer[msg.sender]) revert RelayerOnly();
     unchecked {
-      uint256 txCost = (_ethUSD() * tx.gasprice * onRampGas) / 1e20;
-      if (txCost >= amount) revert LiftFailed();
+      uint256 usdcTxCost = (tx.gasprice * onRampGas) / _ethPerUSDC();
+      console.log('TX COST', usdcTxCost);
+      if (usdcTxCost >= amount) revert LiftFailed();
       IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
       IERC20(usdc).transferFrom(user, address(this), amount);
-      relayerUSDC[msg.sender] += int256(txCost);
-      emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - txCost);
+      relayerUSDC[msg.sender] += int256(usdcTxCost);
+      emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
     }
   }
 
@@ -271,9 +274,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     int256 usdcAmount = relayerUSDC[msg.sender];
     if (usdcAmount == 0) revert NothingToRecover();
     relayerUSDC[msg.sender] = 0;
-    IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, SQRT_PRICE_LIMIT, '');
+    IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, UNISWAP_SRPLX96, '');
     uint256 wethReceived = IERC20(weth).balanceOf(address(this));
-    if (wethReceived < (uint256(usdcAmount) * 9850 * 1e16) / _ethUSD()) revert InvalidAmount();
+    uint256 wethExpected = (uint256(usdcAmount) * _ethPerUSDC() * 9850) / 10000;
+    console.log('RECEIVED', wethReceived);
+    console.log('EXPECTED', wethExpected);
+    if (wethReceived < wethExpected) revert InvalidAmount();
     IWETH9(weth).withdraw(wethReceived);
     (bool success, ) = msg.sender.call{ value: wethReceived }('');
     if (!success) revert TransferFailed();
@@ -557,8 +563,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     revert BadConfirmations();
   }
 
-  function _ethUSD() private view returns (uint256 oneEthInUsd) {
-    oneEthInUsd = uint256(IChainlinkV3Aggregator(feed).latestAnswer());
-    if (oneEthInUsd == 0) revert FeedFailure();
+  function _ethPerUSDC() private view returns (uint256 price) {
+    console.log("AAA", uint256(IChainlinkV3Aggregator(feed).latestAnswer()));
+
+    price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / ONE_USDC;
+    if (price == 0) revert FeedFailure();
   }
 }

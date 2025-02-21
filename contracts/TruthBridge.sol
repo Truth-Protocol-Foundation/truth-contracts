@@ -11,7 +11,6 @@ pragma solidity 0.8.28;
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
-import 'hardhat/console.sol';
 
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
@@ -261,7 +260,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (!isRelayer[msg.sender]) revert RelayerOnly();
     unchecked {
       uint256 usdcTxCost = (tx.gasprice * onRampGas) / _ethPerUSDC();
-      console.log('TX COST', usdcTxCost);
       if (usdcTxCost >= amount) revert LiftFailed();
       IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
       IERC20(usdc).transferFrom(user, address(this), amount);
@@ -276,10 +274,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     relayerUSDC[msg.sender] = 0;
     IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, UNISWAP_SRPLX96, '');
     uint256 wethReceived = IERC20(weth).balanceOf(address(this));
-    uint256 wethExpected = (uint256(usdcAmount) * _ethPerUSDC() * 9850) / 10000;
-    console.log('RECEIVED', wethReceived);
-    console.log('EXPECTED', wethExpected);
-    if (wethReceived < wethExpected) revert InvalidAmount();
+    if (wethReceived < (uint256(usdcAmount) * _ethPerUSDC() * 9850) / 10000) revert InvalidAmount();
     IWETH9(weth).withdraw(wethReceived);
     (bool success, ) = msg.sender.call{ value: wethReceived }('');
     if (!success) revert TransferFailed();
@@ -564,7 +559,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   function _ethPerUSDC() private view returns (uint256 price) {
-    console.log("AAA", uint256(IChainlinkV3Aggregator(feed).latestAnswer()));
+    console.log('AAA', uint256(IChainlinkV3Aggregator(feed).latestAnswer()));
 
     price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / ONE_USDC;
     if (price == 0) revert FeedFailure();

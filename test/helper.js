@@ -6,7 +6,7 @@ const coder = ethers.AbiCoder.defaultAbiCoder();
 const USDC = {
   mainnet: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', holder: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341' },
   sepolia: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', holder: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f' }
-}
+};
 
 const EMPTY_BYTES = '0x';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -180,7 +180,7 @@ async function increaseBlockTimestamp(seconds) {
 }
 
 async function init(numAuthors, largeTree = false) {
-  fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia'
+  fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
   console.log(`   ${fork} fork`);
   const [owner] = await ethers.getSigners();
   accounts = [owner];

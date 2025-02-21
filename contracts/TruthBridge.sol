@@ -66,8 +66,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error AlreadyAdded(); // 0xf411c327
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
+  error ExcessSlippage();
   error FeedFailure();
-  error InvalidAmount();
   error InvalidCallback();
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
@@ -111,7 +111,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    onRampGas = 107000;
+    onRampGas = 101500;
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
@@ -274,7 +274,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     relayerUSDC[msg.sender] = 0;
     IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, UNISWAP_SRPLX96, '');
     uint256 wethReceived = IERC20(weth).balanceOf(address(this));
-    if (wethReceived < (uint256(usdcAmount) * _ethPerUSDC() * 9850) / 10000) revert InvalidAmount();
+    if (wethReceived < (uint256(usdcAmount) * _ethPerUSDC() * 98) / 100) revert ExcessSlippage();
     IWETH9(weth).withdraw(wethReceived);
     (bool success, ) = msg.sender.call{ value: wethReceived }('');
     if (!success) revert TransferFailed();
@@ -559,8 +559,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   function _ethPerUSDC() private view returns (uint256 price) {
-    console.log('AAA', uint256(IChainlinkV3Aggregator(feed).latestAnswer()));
-
     price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / ONE_USDC;
     if (price == 0) revert FeedFailure();
   }

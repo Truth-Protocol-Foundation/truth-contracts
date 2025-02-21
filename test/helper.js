@@ -3,13 +3,10 @@ const { MerkleTree } = require('merkletreejs');
 const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
 
-// MAINNET
-const USDC_HOLDER = '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341';
-const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-
-// SEPOLIA
-// const USDC_HOLDER = '0x1C27eAD3265239581C936d880c53b8a7E0590a9f';
-// const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
+const USDC = {
+  mainnet: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', holder: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341' },
+  sepolia: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', holder: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f' }
+}
 
 const EMPTY_BYTES = '0x';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -23,6 +20,7 @@ let additionalTx = [];
 let accounts = [];
 let authors = [];
 let lowerId = 0;
+let fork;
 let usdc;
 
 async function createLowerProof(bridge, token, amount, recipient) {
@@ -148,7 +146,7 @@ async function getPermit(token, account, spender, amount, deadline) {
 
   const domain = {
     name: await token.name(),
-    version: await token.version(),
+    version: typeof token.version === 'function' ? await token.version() : '1',
     chainId: (await ethers.provider.getNetwork()).chainId,
     verifyingContract: token.address
   };
@@ -182,24 +180,26 @@ async function increaseBlockTimestamp(seconds) {
 }
 
 async function init(numAuthors, largeTree = false) {
+  fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia'
+  console.log(`   ${fork} fork`);
   const [owner] = await ethers.getSigners();
   accounts = [owner];
   authors = [];
 
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 50000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 10000000000n });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 50000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 10000000000n });
     accounts.push(account);
   }
 
-  await owner.sendTransaction({ to: USDC_HOLDER, value: ethers.parseEther('10') });
-  usdc = new ethers.Contract(USDC_ADDRESS, require('../abi/USDC.js'), ethers.provider);
+  await owner.sendTransaction({ to: USDC[fork].holder, value: ethers.parseEther('10') });
+  usdc = new ethers.Contract(USDC[fork].address, require('../abi/USDC.js'), ethers.provider);
   usdc.address = await usdc.getAddress();
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
@@ -240,9 +240,9 @@ function randomT2TxId() {
 }
 
 async function sendUSDC(recipient, amount) {
-  await impersonateAccount(USDC_HOLDER);
-  await usdc.connect(await ethers.getSigner(USDC_HOLDER)).transfer(recipient.address, amount);
-  await stopImpersonatingAccount(USDC_HOLDER);
+  await impersonateAccount(USDC[fork].holder);
+  await usdc.connect(await ethers.getSigner(USDC[fork].holder)).transfer(recipient.address, amount);
+  await stopImpersonatingAccount(USDC[fork].holder);
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);

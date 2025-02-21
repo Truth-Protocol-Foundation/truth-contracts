@@ -41,7 +41,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
 
-  address private constant feed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+  address private constant feed = 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4;
   address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
   address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;

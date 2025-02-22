@@ -209,8 +209,12 @@ function printErrorCodes() {
   [
     'AddressMismatch()',
     'AlreadyAdded()',
+    'AmountTooLow()',
     'BadConfirmations()',
     'CannotChangeT2Key(bytes32)',
+    'ExcessSlippage()',
+    'FeedFailure()',
+    'InvalidCallback()',
     'InvalidProof()',
     'InvalidT1Key()',
     'InvalidT2Key()',
@@ -221,9 +225,12 @@ function printErrorCodes() {
     'MissingTruth()',
     'NotAnAuthor()',
     'NotEnoughAuthors()',
+    'NothingToRecover()',
+    'RelayerOnly()',
     'RootHashIsUsed()',
     'T1AddressInUse(address)',
     'T2KeyInUse(bytes32)',
+    'TransferFailed()',
     'TxIdIsUsed()',
     'WindowExpired()'
   ].forEach(error => console.log(`error ${error}; // ${ethers.keccak256(ethers.toUtf8Bytes(error)).slice(0, 10)}`));
@@ -308,7 +315,6 @@ module.exports = {
   MIN_AUTHORS,
   ONE_HUNDRED_BILLION,
   ONE_USDC,
-  printErrorCodes,
   randomBytes32,
   randomHex,
   randomT2TxId,

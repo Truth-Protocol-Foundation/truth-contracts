@@ -62,11 +62,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327
+  error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
-  error ExcessSlippage();
-  error FeedFailure();
-  error InvalidCallback();
+  error ExcessSlippage(); // 0x5668e7fc
+  error FeedFailure(); // 0x6148950d
+  error InvalidCallback(); // 0xf7a632f5
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
   error InvalidT2Key(); // 0xf4fc87a4
@@ -77,12 +78,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error MissingTruth(); // 0xd1585e94
   error NotAnAuthor(); // 0x157b0512
   error NotEnoughAuthors(); // 0x3a6a875c
-  error NothingToRecover();
-  error RelayerOnly();
+  error NothingToRecover(); // 0xaba3a548
+  error RelayerOnly(); // 0x7378cebb
   error RootHashIsUsed(); // 0x2c8a3b6e
   error T1AddressInUse(address); // 0x78f22dd1
   error T2KeyInUse(bytes32); // 0x02f3935c
-  error TransferFailed();
+  error TransferFailed(); // 0x90b8ec18
   error TxIdIsUsed(); // 0x7edd16f0
   error WindowExpired(); // 0x7bbfb6fe
 
@@ -266,7 +267,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
         IERC20(usdc).transferFrom(user, address(this), amount);
         relayerBalance[msg.sender] = balance + int256(usdcTxCost);
         emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
-      } else revert LiftFailed();
+      } else revert AmountTooLow();
     }
   }
 

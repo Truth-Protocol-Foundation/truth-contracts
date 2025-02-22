@@ -34,7 +34,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
-  uint256 private constant ONE_USDC = 1e6;
   uint160 private constant UNISWAP_SRPLX96 = 4295128739 + 1; // 1 over the minimum allowed sqrt price limit in Uniswap V3.
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
@@ -54,8 +53,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   mapping(bytes32 => bool) public isPublishedRootHash;
   mapping(uint256 => bool) public isUsedT2TxId;
   mapping(bytes32 => bool) public hasLowered;
-  mapping(address => bool) public isRelayer;
-  mapping(address => int256) public relayerUSDC;
+  mapping(address => int256) public relayerBalance;
 
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
@@ -111,10 +109,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     __Pausable_init();
     __ReentrancyGuard_init();
     __UUPSUpgradeable_init();
-    onRampGas = 101500;
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
+    onRampGas = 105500;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
   }
 
@@ -199,31 +197,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Register a new relayer for proxy on-ramping
-   */
-  function registerRelayer(address relayer) external onlyOwner {
-    if (isRelayer[relayer]) revert();
-    isRelayer[relayer] = true;
-    emit LogRelayerRegistered(relayer);
-  }
-
-  /**
-   * @dev Deregister an existing relayer.
-   */
-  function deregisterRelayer(address relayer) external onlyOwner {
-    if (!isRelayer[relayer]) revert();
-    isRelayer[relayer] = false;
-    emit LogRelayerDeregistered(relayer);
-  }
-
-  /**
-   * @dev Set the gas for the on-ramp
-   */
-  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
-    onRampGas = _onRampGas;
-  }
-
-  /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
   function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
@@ -253,31 +226,69 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(token, amount));
   }
 
+    /**
+   * @dev Register a new relayer for proxy on-ramping
+   */
+  function registerRelayer(address relayer) external onlyOwner {
+    if (relayerBalance[relayer] == 0) {
+      relayerBalance[relayer] = 1;
+      emit LogRelayerRegistered(relayer);
+    } else revert();
+  }
+
+  /**
+   * @dev Deregister an existing relayer
+   */
+  function deregisterRelayer(address relayer) external onlyOwner {
+    if (relayerBalance[relayer] != 0) {
+      relayerBalance[relayer] = 0;
+      emit LogRelayerDeregistered(relayer);
+    } else revert();
+  }
+
+  /**
+   * @dev Set the gas for the on-ramp
+   */
+  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
+    onRampGas = _onRampGas;
+  }
+
   /**
    * @dev enables a registered relayer to lift USDC to the prediciton market on a user's behalf, extracting the gas cost from the USDC being lifted
    */
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
-    if (!isRelayer[msg.sender]) revert RelayerOnly();
+    int256 balance = relayerBalance[msg.sender];
+    if (balance < 1) revert RelayerOnly();
     unchecked {
-      uint256 usdcTxCost = (tx.gasprice * onRampGas) / _ethPerUSDC();
-      if (usdcTxCost >= amount) revert LiftFailed();
-      IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
-      IERC20(usdc).transferFrom(user, address(this), amount);
-      relayerUSDC[msg.sender] += int256(usdcTxCost);
-      emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
+      uint256 usdcTxCost = (tx.gasprice * onRampGas) / usdcEth();
+      if (amount > usdcTxCost) {
+        IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
+        IERC20(usdc).transferFrom(user, address(this), amount);
+        relayerBalance[msg.sender] = balance + int256(usdcTxCost);
+        emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
+      } else revert LiftFailed();
     }
   }
 
   function recoverCosts() external {
-    int256 usdcAmount = relayerUSDC[msg.sender];
-    if (usdcAmount == 0) revert NothingToRecover();
-    relayerUSDC[msg.sender] = 0;
-    IUniswapV3Pool(pool).swap(address(this), true, usdcAmount, UNISWAP_SRPLX96, '');
+    int256 balance = relayerBalance[msg.sender];
+    if (balance < 2) revert NothingToRecover();
+    relayerBalance[msg.sender] = 1;
+    IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, '');
     uint256 wethReceived = IERC20(weth).balanceOf(address(this));
-    if (wethReceived < (uint256(usdcAmount) * _ethPerUSDC() * 98) / 100) revert ExcessSlippage();
+    unchecked {
+      if (wethReceived < (uint256(balance) * usdcEth() * 985) / 1000) revert ExcessSlippage();
+    }
     IWETH9(weth).withdraw(wethReceived);
     (bool success, ) = msg.sender.call{ value: wethReceived }('');
     if (!success) revert TransferFailed();
+  }
+
+  function usdcEth() public view returns (uint256 price) {
+    unchecked {
+      price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / 1e6;
+    }
+    if (price == 0) revert FeedFailure();
   }
 
   function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
@@ -556,10 +567,5 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     } while (confirmationsIndex <= numConfirmations);
 
     revert BadConfirmations();
-  }
-
-  function _ethPerUSDC() private view returns (uint256 price) {
-    price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / ONE_USDC;
-    if (price == 0) revert FeedFailure();
   }
 }

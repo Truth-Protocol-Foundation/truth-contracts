@@ -2,12 +2,12 @@
 pragma solidity 0.8.28;
 
 /**
- * @dev Bridge between Truth Network and Ethereum.
+ * @dev Bridging contract between Truth Network and Ethereum.
  * Enables Author nodes to periodically publish T2 transactional state.
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
- * Enables gasless completion of funds on-ramping via relayers.
+ * Enables gas-free on-ramping of USDC funds via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
@@ -227,7 +227,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(token, amount));
   }
 
-    /**
+  /**
    * @dev Register a new relayer for proxy on-ramping
    */
   function registerRelayer(address relayer) external onlyOwner {
@@ -241,10 +241,11 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    * @dev Deregister an existing relayer
    */
   function deregisterRelayer(address relayer) external onlyOwner {
-    if (relayerBalance[relayer] != 0) {
-      relayerBalance[relayer] = 0;
-      emit LogRelayerDeregistered(relayer);
-    } else revert();
+    int256 balance = relayerBalance[relayer];
+    if (balance == 0) revert();
+    relayerBalance[relayer] = 0;
+    if (balance > 1) IERC20(usdc).transfer(relayer, uint256(balance - 1));
+    emit LogRelayerDeregistered(relayer);
   }
 
   /**
@@ -276,12 +277,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (balance < 2) revert NothingToRecover();
     relayerBalance[msg.sender] = 1;
     IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, '');
-    uint256 wethReceived = IERC20(weth).balanceOf(address(this));
+    uint256 ethAmount = IERC20(weth).balanceOf(address(this));
     unchecked {
-      if (wethReceived < (uint256(balance) * usdcEth() * 985) / 1000) revert ExcessSlippage();
+      if (ethAmount < (uint256(balance) * usdcEth() * 985) / 1000) revert ExcessSlippage();
     }
-    IWETH9(weth).withdraw(wethReceived);
-    (bool success, ) = msg.sender.call{ value: wethReceived }('');
+    IWETH9(weth).withdraw(ethAmount);
+    (bool success, ) = msg.sender.call{ value: ethAmount }('');
     if (!success) revert TransferFailed();
   }
 

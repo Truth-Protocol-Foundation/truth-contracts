@@ -1,7 +1,12 @@
-const { time } = require('@nomicfoundation/hardhat-network-helpers');
+const { impersonateAccount, stopImpersonatingAccount, time } = require('@nomicfoundation/hardhat-network-helpers');
 const { MerkleTree } = require('merkletreejs');
 const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
+
+const USDC = {
+  mainnet: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', holder: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341' },
+  sepolia: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', holder: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f' }
+};
 
 const EMPTY_BYTES = '0x';
 const EMPTY_BYTES_32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -10,11 +15,14 @@ const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
 const MIN_AUTHORS = 4;
 const ONE_HUNDRED_BILLION = 100000000000n;
+const ONE_USDC = 1000000n;
 
 let additionalTx = [];
 let accounts = [];
 let authors = [];
 let lowerId = 0;
+let fork;
+let usdc;
 
 async function createLowerProof(bridge, token, amount, recipient) {
   lowerId++;
@@ -134,12 +142,12 @@ async function getValidExpiry() {
   return (await getCurrentBlockTimestamp()) + EXPIRY_WINDOW;
 }
 
-async function getPermit(token, account, spender, amount) {
-  const deadline = Math.floor(Date.now() / 1000) + 3600;
+async function getPermit(token, account, spender, amount, deadline) {
+  deadline = deadline || Math.floor(Date.now() / 1000) + 3600;
 
   const domain = {
     name: await token.name(),
-    version: '1',
+    version: typeof token.version === 'function' ? await token.version() : '1',
     chainId: (await ethers.provider.getNetwork()).chainId,
     verifyingContract: token.address
   };
@@ -174,21 +182,27 @@ async function increaseBlockTimestamp(seconds) {
 
 async function init(numAuthors, largeTree = false) {
   const [owner] = await ethers.getSigners();
+  await hre.network.provider.send('hardhat_setBalance', [owner.address, '0xD3C21BCECCEDA1000000']); // Set at 1000 ETH
+  fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
+  console.log(`   ${fork} fork`);
   accounts = [owner];
   authors = [];
 
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10') });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 100000000000n });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10') });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 100000000000n });
     accounts.push(account);
   }
 
+  await owner.sendTransaction({ to: USDC[fork].holder, value: ethers.parseEther('10') });
+  usdc = new ethers.Contract(USDC[fork].address, require('../abi/USDC.js'), ethers.provider);
+  usdc.address = await usdc.getAddress();
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
 }
@@ -225,6 +239,12 @@ const randomHex = (bytes = 32) => ethers.hexlify(ethers.randomBytes(bytes));
 
 function randomT2TxId() {
   return Math.floor(Math.random() * 2 ** 32);
+}
+
+async function sendUSDC(recipient, amount) {
+  await impersonateAccount(USDC[fork].holder);
+  await usdc.connect(await ethers.getSigner(USDC[fork].holder)).transfer(recipient.address, amount);
+  await stopImpersonatingAccount(USDC[fork].holder);
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);
@@ -279,20 +299,22 @@ module.exports = {
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,
-  getPermit,
   getConfirmations,
   getCurrentBlockTimestamp,
   getNumRequiredConfirmations,
+  getPermit,
   getSingleConfirmation,
+  getUSDC: () => usdc,
   getValidExpiry,
   increaseBlockTimestamp,
   init,
   MIN_AUTHORS,
   ONE_HUNDRED_BILLION,
-  printErrorCodes,
+  ONE_USDC,
   randomBytes32,
   randomHex,
   randomT2TxId,
+  sendUSDC,
   strip_0x,
   toAuthorAccount,
   ZERO_ADDRESS

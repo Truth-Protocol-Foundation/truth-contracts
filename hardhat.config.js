@@ -4,6 +4,10 @@ require('@openzeppelin/hardhat-upgrades');
 require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('dotenv').config();
+const { updateContract, restoreContract } = require('./scripts/updateContractToSepolia');
+
+const FORK = process.env.FORK || 'mainnet';
+const FORKING_URL = FORK === 'sepolia' ? process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL : process.env.MAINNET_ALCHEMY_OR_INFURA_URL;
 
 const TOKEN_NAME = 'Truth';
 const TOKEN_SYMBOL = 'TRUU';
@@ -12,22 +16,26 @@ const TOKEN_SUPPLY = 100000000000n;
 task('implementation')
   .addPositionalParam('contractType')
   .setAction(async (args, hre) => {
+    const { ethers, network } = hre;
+    let originalContract;
+    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
     await hre.run('compile');
-    const {
-      ethers,
-      network: { name: network }
-    } = hre;
-    const [signer] = await ethers.getSigners();
-    const signerBalance = await ethers.provider.getBalance(signer.address);
-    const contractName = getContractName(args.contractType);
-    console.log(`\nDeploying ${contractName} implementation on ${network} using account ${signer.address}...`);
-    const contractFactory = await ethers.getContractFactory(contractName);
-    const implementation = await contractFactory.deploy();
-    const impAddress = await implementation.getAddress();
-    const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
-    console.log(`\nDeployed ${contractName} implementation at ${impAddress} for ${cost} ETH\n`);
-    await delay(20);
-    await verify(impAddress);
+
+    try {
+      const [signer] = await ethers.getSigners();
+      const signerBalance = await ethers.provider.getBalance(signer.address);
+      const contractName = getContractName(args.contractType);
+      console.log(`\nDeploying ${contractName} implementation on ${network.name} using account ${signer.address}...`);
+      const contractFactory = await ethers.getContractFactory(contractName);
+      const implementation = await contractFactory.deploy();
+      const impAddress = await implementation.getAddress();
+      const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
+      console.log(`\nDeployed ${contractName} implementation at ${impAddress} for ${cost} ETH\n`);
+      await delay(20);
+      await verify(hre, impAddress);
+    } finally {
+      if (originalContract) restoreContract(originalContract);
+    }
   });
 
 task('deploy')
@@ -36,58 +44,63 @@ task('deploy')
   .addOptionalParam('token')
   .addOptionalParam('owner')
   .setAction(async (args, hre) => {
+    const { ethers, upgrades, network } = hre;
+    let originalContract;
+    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
     await hre.run('compile');
-    const {
-      ethers,
-      upgrades,
-      network: { name: network }
-    } = hre;
-    const [signer] = await ethers.getSigners();
-    const signerBalance = await ethers.provider.getBalance(signer.address);
-    const contractName = getContractName(args.contractType);
-    const initArgs = getInitArgs(args, network, signer);
 
-    console.log(`\nDeploying ${contractName} on ${network} using account ${signer.address}...`);
-    const contractFactory = await ethers.getContractFactory(contractName);
-    const proxy = await upgrades.deployProxy(contractFactory, initArgs, { kind: 'uups' });
-    const proxyAddress = await proxy.getAddress();
-    const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
-    console.log(`\nDeployed ${contractName} at ${proxyAddress} for ${cost} ETH\n`);
+    try {
+      const [signer] = await ethers.getSigners();
+      const signerBalance = await ethers.provider.getBalance(signer.address);
+      const contractName = getContractName(args.contractType);
+      const initArgs = getInitArgs(args, network, signer);
 
-    await delay(30);
-    await verify(await upgrades.erc1967.getImplementationAddress(proxyAddress));
-    await verify(proxyAddress);
+      console.log(`\nDeploying ${contractName} on ${network.name} using account ${signer.address}...`);
+      const contractFactory = await ethers.getContractFactory(contractName);
+      const proxy = await upgrades.deployProxy(contractFactory, initArgs, { kind: 'uups' });
+      const proxyAddress = await proxy.getAddress();
+      const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
+      console.log(`\nDeployed ${contractName} at ${proxyAddress} for ${cost} ETH\n`);
+
+      await delay(30);
+      await verify(hre, await upgrades.erc1967.getImplementationAddress(proxyAddress));
+      await verify(hre, proxyAddress);
+    } finally {
+      if (originalContract) restoreContract(originalContract);
+    }
   });
 
 task('upgrade')
   .addPositionalParam('contractType')
   .addPositionalParam('proxyAddress')
   .setAction(async (args, hre) => {
+    const { ethers, upgrades, network } = hre;
+    let originalContract;
+    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
     await hre.run('compile');
-    const {
-      ethers,
-      upgrades,
-      network: { name: network }
-    } = hre;
-    const [signer] = await ethers.getSigners();
-    const signerBalance = await ethers.provider.getBalance(signer.address);
-    const contractName = getContractName(args.contractType);
+    try {
+      const [signer] = await ethers.getSigners();
+      const signerBalance = await ethers.provider.getBalance(signer.address);
+      const contractName = getContractName(args.contractType);
 
-    console.log(`\nUpgrading ${contractName} on ${network} using account ${signer.address}...`);
-    const contractFactory = await ethers.getContractFactory(contractName);
-    await upgrades.upgradeProxy(args.proxyAddress, contractFactory);
-    const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
-    console.log(`\nUpgraded ${contractName} at ${args.proxyAddress} for ${cost} ETH\n`);
+      console.log(`\nUpgrading ${contractName} on ${network} using account ${signer.address}...`);
+      const contractFactory = await ethers.getContractFactory(contractName);
+      await upgrades.upgradeProxy(args.proxyAddress, contractFactory);
+      const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
+      console.log(`\nUpgraded ${contractName} at ${args.proxyAddress} for ${cost} ETH\n`);
 
-    await delay(20);
-    await verify(await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
+      await delay(20);
+      await verify(hre, await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
+    } finally {
+      if (originalContract) restoreContract(originalContract);
+    }
   });
 
 function getInitArgs(args, network, signer) {
   let owner;
 
   if (args.owner === undefined) {
-    if (network === 'mainnet') {
+    if (network.name === 'mainnet') {
       console.log('\nMust specify "--owner" for mainnet, exiting.');
       process.exit(1);
     } else {
@@ -121,7 +134,7 @@ function delay(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-async function verify(address) {
+async function verify(hre, address) {
   try {
     await hre.run('verify:verify', { address });
   } catch (error) {
@@ -150,9 +163,9 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      // forking: {
-      //   url: process.env.MAINNET_ALCHEMY_OR_INFURA_URL || ''
-      // }
+      forking: {
+        url: FORKING_URL
+      }
     },
     sepolia: {
       url: process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL || '',

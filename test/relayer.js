@@ -180,7 +180,7 @@ describe('Relayer Functions', async () => {
 
         await bridge.connect(relayer1).recoverCosts();
         const gainOrLoss = (await ethers.provider.getBalance(relayer1.address)) - initialBalance;
-        console.log(gainOrLoss);
+        // console.log(gainOrLoss);
       });
     });
   });

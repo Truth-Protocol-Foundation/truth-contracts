@@ -4,6 +4,7 @@ const { expect } = require('chai');
 const coder = ethers.AbiCoder.defaultAbiCoder();
 
 const EMPTY_BYTES = '0x';
+const EMPTY_BYTES_32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
@@ -274,6 +275,7 @@ module.exports = {
   deployTruthToken,
   expect,
   EMPTY_BYTES,
+  EMPTY_BYTES_32,
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,

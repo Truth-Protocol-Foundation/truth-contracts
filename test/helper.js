@@ -182,7 +182,7 @@ async function increaseBlockTimestamp(seconds) {
 
 async function init(numAuthors, largeTree = false) {
   const [owner] = await ethers.getSigners();
-  await hre.network.provider.send('hardhat_setBalance', [owner.address, '0xD3C21BCECCEDA1000000']);
+  await hre.network.provider.send('hardhat_setBalance', [owner.address, '0xD3C21BCECCEDA1000000']); // Set at 1000 ETH
   fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
   console.log(`   ${fork} fork`);
   accounts = [owner];

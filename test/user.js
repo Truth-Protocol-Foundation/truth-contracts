@@ -115,10 +115,9 @@ describe('User Functions', async () => {
 
       it('attempting to proxy lift tokens without supplying a T2 public key', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.connect(user).proxyLift(truth.address, owner.address, EMPTY_BYTES_32, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          bridge,
-          'InvalidT2Key'
-        );
+        await expect(
+          bridge.connect(user).proxyLift(truth.address, owner.address, EMPTY_BYTES_32, amount, permit.deadline, permit.v, permit.r, permit.s)
+        ).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
       });
 
       it('attempting to lift more tokens than the T2 limit', async () => {
@@ -139,10 +138,9 @@ describe('User Functions', async () => {
           bridge,
           'EnforcedPause'
         );
-        await expect(bridge.connect(user).proxyLift(truth.address, owner.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          bridge,
-          'EnforcedPause'
-        );
+        await expect(
+          bridge.connect(user).proxyLift(truth.address, owner.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s)
+        ).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         await bridge.unpause();
       });
 
@@ -216,7 +214,15 @@ describe('User Functions', async () => {
   });
 
   context('Reentrancy prevention', async () => {
-    const reentryPoint = { ClaimLower: 0, Lift: 1, PermitLift: 2, ProxyLift: 3, PredictionMarketLift: 4, PredictionMarketPermitLift: 5, PredictionMarketProxyLift: 6 };
+    const reentryPoint = {
+      ClaimLower: 0,
+      Lift: 1,
+      PermitLift: 2,
+      ProxyLift: 3,
+      PredictionMarketLift: 4,
+      PredictionMarketPermitLift: 5,
+      PredictionMarketProxyLift: 6
+    };
     const amount = 100n;
     let reentrantToken;
 

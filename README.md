@@ -45,8 +45,11 @@
 #### Format the code
 `npm run format`
 
-#### Run tests (includes gas report)
-`npm run test`
+#### Run mainnet tests
+`npm run tests`
+
+#### Run sepolia tests
+`npm run tests-s`
 
 #### Run coverage
 `npm run coverage`

@@ -25,6 +25,18 @@
     - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.
 - Upgradeable.
 
+## Lift Methods
+
+| Method                        | Approval Tx Required? | Callable By | T2 Account Specified As         |
+|-------------------------------|-----------------------|-------------|---------------------------------|
+| **lift**                      | Yes                   | Lifter      | `bytes`                         |
+| **permitLift**                | No                    | Lifter      | `bytes32`                       |
+| **proxyLift**                 | No                    | Anyone      | `bytes32`                       |
+| **predictionMarketLift**      | Yes                   | Lifter      | Derived from lifter ETH address |
+| **predictionMarketPermitLift**| No                    | Lifter      | Derived from lifter ETH address |
+| **predictionMarketProxyLift** | No                    | Anyone      | Derived from lifter ETH address |
+
+
 # Development
 
 ## Setup

@@ -55,29 +55,29 @@
   ],
   "mainnet": [
     {
-      "ethAddress": "",
-      "ethUncompressedPublicKey": "",
-      "t2PublicKey": ""
+      "ethAddress": "0xadb107062b47aa6124b6b8c373f706480e968b1a",
+      "ethUncompressedPublicKey": "0x04e6b029409e6a81b21299e7208b1a6a4d869d7ba9735fd978469b8f2f32934dab2f3614a60d8e75be654b445c0821c7521f469b55943fa406da09bdd4e57da607",
+      "t2PublicKey": "0x48bc71ac1d8ec4f0583f0c0e1eb6bf719e227d49522da8ed4cde9bfe48cbfc03"
     },
     {
-      "ethAddress": "",
-      "ethUncompressedPublicKey": "",
-      "t2PublicKey": ""
+      "ethaddress": "0x88ec651413a5c78e4f8a1f0120a33267464395b9",
+      "ethuncompressedpublickey": "0x04a4b1c40828b8c12f3688793b922613653414be52bf5a1d109e1a7afacc4470b5441c1bb673158d7d644370d31b4598daaa2386a26ccc32c3a47dd074a30cf4ab",
+      "t2PublicKey": "0x0a70438a1b745e50271acdbe63c881181dc7e9c7562bbf1c88f6336262d2a65f"
     },
     {
-      "ethAddress": "",
-      "ethUncompressedPublicKey": "",
-      "t2PublicKey": ""
+      "ethaddress": "0xf7645c0dbb0024882a8c0d9663d7551ca48c2047",
+      "ethuncompressedpublickey": "0x0450fc23b93f6f883677b976201cd7f74f9d844e5bc520f3b4bcdff9969843bec13db75dc02b6bb8c67b0279e28c4b33c0b8748790e6ec78c9f323377af3707505",
+      "t2PublicKey": "0x8e4f5ef30c72969ff456f7ff48b9e6c134929f4e63f5e70f6b039593bdf3a256"
     },
     {
-      "ethAddress": "",
-      "ethUncompressedPublicKey": "",
-      "t2PublicKey": ""
+      "ethaddress": "0x282f02e73492f4dffa8db2cb096f2eb72ffc63f3",
+      "ethuncompressedpublickey": "0x04a4038b4a6878e32f20763037760e7b2fd59fc0ef0bb146cb2cf1010881526c8bc8ec72c535937fef8fae804afd1b74c980521cd549223707507d61eae5873591",
+      "t2PublicKey": "0xc8a340275eb82c0aa0778574d4adbacd60c79cf89fc3d0f751caa41006c23c61"
     },
     {
-      "ethAddress": "",
-      "ethUncompressedPublicKey": "",
-      "t2PublicKey": ""
+      "ethaddress": "0x9364e5ba6f9ea1e12b6eba1fb4229801cd908965",
+      "ethuncompressedpublickey": "0x04bc7fe8abf2884b3ff257b8606bc6fd0670b01bbf7ebe101efd26c44b8d5c526618d2add7dcafbbfd4901a791fc172b56b4884e9870eb358843a1460c1ea0c22a",
+      "t2PublicKey": "0x8ad694373add4bea87fbda36b5155044f8d2e7c6761f43d12367227a097fa152"
     }
   ]
 }

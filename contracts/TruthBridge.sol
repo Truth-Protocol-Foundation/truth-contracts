@@ -268,7 +268,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    */
   function registerRelayer(address relayer) external onlyOwner {
     if (relayerBalance[relayer] == 0) {
-      relayerBalance[relayer] = 1; // minimizes storage reads by using trace balance to denote a registered relayer
+      relayerBalance[relayer] = 1; // minimizes storage R/W by using trace balance to denote a registered relayer
       emit LogRelayerRegistered(relayer);
     } else revert(); // relayer already registered
   }

@@ -173,7 +173,7 @@ describe('Relayer Functions', async () => {
 
       it('when called by a relayer', async () => {
         const initialBalance = await ethers.provider.getBalance(relayer1.address);
-        for (i = 0; i < 10; i++) {
+        for (i = 0; i < 100; i++) {
           await doOnRamp();
         }
 

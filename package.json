@@ -5,8 +5,8 @@
     "format": "npm run pretty:fix && npm run pretty:sol",
     "pretty:fix": "prettier --config ./.prettierrc.json --write \"**/*.{js,json}\"",
     "pretty:sol": "npx prettier --write --plugin=prettier-plugin-solidity contracts/**/*.sol",
-    "test": "npx hardhat test",
-    "tests": "node switchToSepolia.js",
+    "tests": "npx hardhat test",
+    "tests-s": "node switchToSepolia.js",
     "coverage": "npx hardhat coverage"
   },
   "description": "Ethereum smart contracts for the Truth Network",

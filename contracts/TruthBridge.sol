@@ -113,7 +113,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
-    onRampGas = 105500;
+    onRampGas = 110000;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
   }
 
@@ -228,13 +228,13 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Register a new relayer for proxy on-ramping
+   * @dev Register a new relayer for proxy on-ramping completion
    */
   function registerRelayer(address relayer) external onlyOwner {
     if (relayerBalance[relayer] == 0) {
-      relayerBalance[relayer] = 1;
+      relayerBalance[relayer] = 1; // minimizes storage reads by using trace balance to denote a registered relayer
       emit LogRelayerRegistered(relayer);
-    } else revert();
+    } else revert(); // relayer already registered
   }
 
   /**
@@ -242,21 +242,21 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    */
   function deregisterRelayer(address relayer) external onlyOwner {
     int256 balance = relayerBalance[relayer];
-    if (balance == 0) revert();
+    if (balance == 0) revert(); // no such relayer
     relayerBalance[relayer] = 0;
-    if (balance > 1) IERC20(usdc).transfer(relayer, uint256(balance - 1));
+    if (balance > 1) IERC20(usdc).transfer(relayer, uint256(balance - 1)); // transfer any unclaimed USDC
     emit LogRelayerDeregistered(relayer);
   }
 
   /**
-   * @dev Set the gas for the on-ramp
+   * @dev Adjust the gas for the on-ramp
    */
   function setOnRampGas(uint256 _onRampGas) external onlyOwner {
     onRampGas = _onRampGas;
   }
 
   /**
-   * @dev enables a registered relayer to lift USDC to the prediciton market on a user's behalf, extracting the gas cost from the USDC being lifted
+   * @dev Enables a relayer to lift USDC to the prediciton market on a user's behalf, extracting the tx cost from the USDC
    */
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
     int256 balance = relayerBalance[msg.sender];
@@ -272,11 +272,14 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     }
   }
 
+  /**
+  * @dev Allows relayers to recover their ETH costs
+  */
   function recoverCosts() external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 2) revert NothingToRecover();
-    relayerBalance[msg.sender] = 1;
-    IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, '');
+    relayerBalance[msg.sender] = 1; // retain trace registration balance
+    IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, ''); // triggers callback to take the funds
     uint256 ethAmount = IERC20(weth).balanceOf(address(this));
     unchecked {
       if (ethAmount < (uint256(balance) * usdcEth() * 985) / 1000) revert ExcessSlippage();
@@ -286,6 +289,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (!success) revert TransferFailed();
   }
 
+  /**
+   * @dev Returns the current Wei per USDC
+   */
   function usdcEth() public view returns (uint256 price) {
     unchecked {
       price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / 1e6;
@@ -293,6 +299,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (price == 0) revert FeedFailure();
   }
 
+  /**
+   * @dev Only callable by the Uniswap pool to complete a cost recovery swap
+   */
   function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
     if (msg.sender != pool) revert InvalidCallback();
     IERC20(usdc).transfer(msg.sender, uint256(amount0Delta));

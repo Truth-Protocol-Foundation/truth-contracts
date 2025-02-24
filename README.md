@@ -33,11 +33,11 @@
 #### Format the code
 `npm run format`
 
-#### Run tests against mainnet fork
-`npm run test`
-
-#### Run tests against sepolia fork
+#### Run mainnet tests
 `npm run tests`
+
+#### Run sepolia tests
+`npm run tests-s`
 
 #### Run coverage
 `npm run coverage`

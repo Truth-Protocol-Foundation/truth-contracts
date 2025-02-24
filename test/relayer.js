@@ -127,6 +127,7 @@ describe('Relayer Functions', async () => {
 
       it('if the amount will not cover the tx cost', async () => {
         const txCost = await getTxCost();
+        await sendUSDC(user, txCost * 2n);
         let amount = txCost - 1n;
         let permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(relayer1).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(

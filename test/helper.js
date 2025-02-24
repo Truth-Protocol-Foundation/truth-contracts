@@ -188,13 +188,13 @@ async function init(numAuthors, largeTree = false) {
 
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 8000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 80000000000n });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 8000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 80000000000n });
     accounts.push(account);
   }
 

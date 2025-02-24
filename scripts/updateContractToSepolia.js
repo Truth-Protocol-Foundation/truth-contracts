@@ -19,10 +19,7 @@ const contractPath = path.resolve(__dirname, '../contracts/TruthBridge.sol');
 
 function updateContract() {
   const original = fs.readFileSync(contractPath, 'utf8');
-  const updated = Object.entries(mainnet).reduce(
-    (acc, [key, mainAddr]) => acc.replaceAll(mainAddr, sepolia[key]),
-    original
-  );
+  const updated = Object.entries(mainnet).reduce((acc, [key, mainAddr]) => acc.replaceAll(mainAddr, sepolia[key]), original);
   fs.writeFileSync(contractPath, updated, 'utf8');
   return original;
 }

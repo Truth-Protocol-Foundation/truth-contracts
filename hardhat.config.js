@@ -25,14 +25,14 @@ task('implementation')
       const [signer] = await ethers.getSigners();
       const signerBalance = await ethers.provider.getBalance(signer.address);
       const contractName = getContractName(args.contractType);
-      console.log(`\nDeploying ${contractName} implementation on ${network} using account ${signer.address}...`);
+      console.log(`\nDeploying ${contractName} implementation on ${network.name} using account ${signer.address}...`);
       const contractFactory = await ethers.getContractFactory(contractName);
       const implementation = await contractFactory.deploy();
       const impAddress = await implementation.getAddress();
       const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
       console.log(`\nDeployed ${contractName} implementation at ${impAddress} for ${cost} ETH\n`);
       await delay(20);
-      await verify(impAddress);
+      await verify(hre, impAddress);
     } finally {
       if (originalContract) restoreContract(originalContract);
     }
@@ -55,7 +55,7 @@ task('deploy')
       const contractName = getContractName(args.contractType);
       const initArgs = getInitArgs(args, network, signer);
 
-      console.log(`\nDeploying ${contractName} on ${network} using account ${signer.address}...`);
+      console.log(`\nDeploying ${contractName} on ${network.name} using account ${signer.address}...`);
       const contractFactory = await ethers.getContractFactory(contractName);
       const proxy = await upgrades.deployProxy(contractFactory, initArgs, { kind: 'uups' });
       const proxyAddress = await proxy.getAddress();
@@ -63,8 +63,8 @@ task('deploy')
       console.log(`\nDeployed ${contractName} at ${proxyAddress} for ${cost} ETH\n`);
 
       await delay(30);
-      await verify(await upgrades.erc1967.getImplementationAddress(proxyAddress));
-      await verify(proxyAddress);
+      await verify(hre, await upgrades.erc1967.getImplementationAddress(proxyAddress));
+      await verify(hre, proxyAddress);
     } finally {
       if (originalContract) restoreContract(originalContract);
     }
@@ -90,7 +90,7 @@ task('upgrade')
       console.log(`\nUpgraded ${contractName} at ${args.proxyAddress} for ${cost} ETH\n`);
 
       await delay(20);
-      await verify(await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
+      await verify(hre, await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
     } finally {
       if (originalContract) restoreContract(originalContract);
     }
@@ -100,7 +100,7 @@ function getInitArgs(args, network, signer) {
   let owner;
 
   if (args.owner === undefined) {
-    if (network === 'mainnet') {
+    if (network.name === 'mainnet') {
       console.log('\nMust specify "--owner" for mainnet, exiting.');
       process.exit(1);
     } else {
@@ -134,7 +134,7 @@ function delay(seconds) {
   return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-async function verify(address) {
+async function verify(hre, address) {
   try {
     await hre.run('verify:verify', { address });
   } catch (error) {

@@ -9,9 +9,11 @@ contract ReentrantToken is ERC20 {
   enum ReentryPoint {
     ClaimLower,
     Lift,
-    LiftPermit,
-    LiftPM,
-    LiftPMPermit
+    PermitLift,
+    ProxyLift,
+    PredicitonMarketLift,
+    PermitPredicitonMarketLift,
+    ProxyPredicitonMarketLift
   }
 
   ReentryPoint private _reentryPoint;
@@ -19,7 +21,8 @@ contract ReentrantToken is ERC20 {
 
   bytes private _proof;
   address private _token;
-  bytes private _t2PubKey;
+  bytes private _t2PubKeyBytes;
+  bytes32 private _t2PubKey;
   uint256 private _amount;
   uint256 private _deadline;
   uint8 private _v;
@@ -44,9 +47,11 @@ contract ReentrantToken is ERC20 {
 
   function _attemptReentry() private {
     if (_reentryPoint == ReentryPoint.ClaimLower) _bridge.claimLower(_proof);
-    else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKey, _amount);
-    else if (_reentryPoint == ReentryPoint.LiftPermit) _bridge.lift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s);
-    else if (_reentryPoint == ReentryPoint.LiftPM) _bridge.liftToPredictionMarket(_token, _amount);
-    else if (_reentryPoint == ReentryPoint.LiftPMPermit) _bridge.liftToPredictionMarket(_token, _amount, _deadline, _v, _r, _s);
+    else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKeyBytes, _amount);
+    else if (_reentryPoint == ReentryPoint.PermitLift) _bridge.permitLift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s);
+    else if (_reentryPoint == ReentryPoint.ProxyLift) _bridge.proxyLift(_token, msg.sender, _t2PubKey, _amount, _deadline, _v, _r, _s);
+    else if (_reentryPoint == ReentryPoint.PredicitonMarketLift) _bridge.predictionMarketLift(_token, _amount);
+    else if (_reentryPoint == ReentryPoint.PermitPredicitonMarketLift) _bridge.predictionMarketPermitLift(_token, _amount, _deadline, _v, _r, _s);
+    else if (_reentryPoint == ReentryPoint.ProxyPredicitonMarketLift) _bridge.predictionMarketProxyLift(_token, msg.sender, _amount, _deadline, _v, _r, _s);
   }
 }

@@ -201,34 +201,70 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
   function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
-    emit LogLifted(token, _checkT2PubKey(t2PubKey), _lift(token, amount));
+    if (t2PubKey.length != 32) revert InvalidT2Key();
+    emit LogLifted(token, bytes32(t2PubKey), _lift(msg.sender, token, amount));
   }
 
   /**
-   * @dev lift variant accepting an ERC-2612 permit in place of prior approval.
+   * @dev lift variant accepting an ERC-2612 permit in place of prior token approval.
    */
-  function lift(address token, bytes calldata t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+  function permitLift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+    if (t2PubKey == bytes32(0)) revert InvalidT2Key();
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
-    emit LogLifted(token, _checkT2PubKey(t2PubKey), _lift(token, amount));
+    emit LogLifted(token, t2PubKey, _lift(msg.sender, token, amount));
+  }
+
+  /**
+   * @dev lift variant accepting an ERC-2612 permit and lifter address to enable proxyied lifting.
+   */
+  function proxyLift(
+    address token,
+    address lifter,
+    bytes32 t2PubKey,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external whenNotPaused nonReentrant {
+    if (t2PubKey == bytes32(0)) revert InvalidT2Key();
+    IERC20Permit(token).permit(lifter, address(this), amount, deadline, v, r, s);
+    emit LogLifted(token, t2PubKey, _lift(lifter, token, amount));
   }
 
   /**
    * @dev Lifts tokens to the derived T2 account of the caller on the prediction market, provided they have first been approved.
    */
-  function liftToPredictionMarket(address token, uint256 amount) external whenNotPaused nonReentrant {
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(token, amount));
+  function predictionMarketLift(address token, uint256 amount) external whenNotPaused nonReentrant {
+    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
   }
 
   /**
-   * @dev liftToPredictionMarket variant accepting an ERC-2612 permit in place of prior approval.
+   * @dev Prediction market lift variant accepting an ERC-2612 permit in place of prior approval.
    */
-  function liftToPredictionMarket(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+  function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(token, amount));
+    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
   }
 
   /**
-   * @dev Register a new relayer for proxy on-ramping completion
+   * @dev Prediction market lift variant accepting an ERC-2612 permit and lifter address to enable proxyied lifting.
+   */
+  function predictionMarketProxyLift(
+    address token,
+    address lifter,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external whenNotPaused nonReentrant {
+    IERC20Permit(token).permit(lifter, address(this), amount, deadline, v, r, s);
+    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(lifter), _lift(lifter, token, amount));
+  }
+
+  /**
+   * @dev Registers a relayer for proxying user on-ramp completions
    */
   function registerRelayer(address relayer) external onlyOwner {
     if (relayerBalance[relayer] == 0) {
@@ -238,7 +274,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Deregister an existing relayer
+   * @dev Deregisters an existing relayer
    */
   function deregisterRelayer(address relayer) external onlyOwner {
     int256 balance = relayerBalance[relayer];
@@ -249,14 +285,14 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Adjust the gas for the on-ramp
+   * @dev Adjusts the gas for the on-ramp
    */
   function setOnRampGas(uint256 _onRampGas) external onlyOwner {
     onRampGas = _onRampGas;
   }
 
   /**
-   * @dev Enables a relayer to lift USDC to the prediciton market on a user's behalf, extracting the tx cost from the USDC
+   * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
   function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
     int256 balance = relayerBalance[msg.sender];
@@ -273,8 +309,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-  * @dev Allows relayers to recover their ETH costs
-  */
+   * @dev Allows relayers to recover their ETH costs
+   */
   function recoverCosts() external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 2) revert NothingToRecover();
@@ -290,7 +326,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Returns the current Wei per USDC
+   * @dev Returns the current Wei value of 1 USDC
    */
   function usdcEth() public view returns (uint256 price) {
     unchecked {
@@ -300,14 +336,14 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Only callable by the Uniswap pool to complete a cost recovery swap
+   * @dev Only callable by the Uniswap pool to complete the swap in recoverCosts
    */
   function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
     if (msg.sender != pool) revert InvalidCallback();
     IERC20(usdc).transfer(msg.sender, uint256(amount0Delta));
   }
 
-  // Allow the contract to receive ETH (from WETH withdrawal).
+  // Allows the contract to receive ETH (from WETH withdrawal).
   receive() external payable {}
 
   /** @dev Checks a lower proof. Returns the details, proof validity, and claim status.
@@ -473,9 +509,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     }
   }
 
-  function _lift(address token, uint256 amount) private returns (uint256) {
+  function _lift(address lifter, address token, uint256 amount) private returns (uint256) {
     uint256 existingBalance = IERC20(token).balanceOf(address(this));
-    IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+    IERC20(token).safeTransferFrom(lifter, address(this), amount);
     uint256 newBalance = IERC20(token).balanceOf(address(this));
     if (newBalance <= existingBalance) revert LiftFailed();
     if (newBalance > T2_TOKEN_LIMIT) revert LiftLimitHit();
@@ -517,11 +553,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   function _toAddress(bytes memory t1PubKey) private pure returns (address) {
     return address(uint160(uint256(keccak256(t1PubKey))));
-  }
-
-  function _checkT2PubKey(bytes calldata t2PubKey) private pure returns (bytes32 checkedT2PubKey) {
-    if (t2PubKey.length != 32) revert InvalidT2Key();
-    checkedT2PubKey = bytes32(t2PubKey);
   }
 
   function _verifyConfirmations(bool isLower, bytes32 msgHash, bytes calldata confirmations) private {

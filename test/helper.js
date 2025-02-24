@@ -9,6 +9,7 @@ const USDC = {
 };
 
 const EMPTY_BYTES = '0x';
+const EMPTY_BYTES_32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
 const EXPIRY_WINDOW = 60;
@@ -180,21 +181,22 @@ async function increaseBlockTimestamp(seconds) {
 }
 
 async function init(numAuthors, largeTree = false) {
+  const [owner] = await ethers.getSigners();
+  await hre.network.provider.send('hardhat_setBalance', [owner.address, '0xD3C21BCECCEDA1000000']);
   fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
   console.log(`   ${fork} fork`);
-  const [owner] = await ethers.getSigners();
   accounts = [owner];
   authors = [];
 
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 80000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 100000000000n });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 80000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 100000000000n });
     accounts.push(account);
   }
 
@@ -300,6 +302,7 @@ module.exports = {
   deployTruthToken,
   expect,
   EMPTY_BYTES,
+  EMPTY_BYTES_32,
   EXPIRY_WINDOW,
   getAccounts: () => accounts,
   getAuthors: () => authors,

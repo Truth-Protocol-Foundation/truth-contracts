@@ -7,11 +7,15 @@ pragma solidity 0.8.28;
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
+ * Enables gas-free on-ramping of USDC funds via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
 
 import './interfaces/ITruthBridge.sol';
+import './interfaces/IChainlinkV3Aggregator.sol';
+import './interfaces/IUniswapV3Pool.sol';
+import './interfaces/IWETH9.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
@@ -30,6 +34,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
+  uint160 private constant UNISWAP_SRPLX96 = 4295128739 + 1; // 1 over the minimum allowed sqrt price limit in Uniswap V3.
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
@@ -48,15 +53,21 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   mapping(bytes32 => bool) public isPublishedRootHash;
   mapping(uint256 => bool) public isUsedT2TxId;
   mapping(bytes32 => bool) public hasLowered;
+  mapping(address => int256) public relayerBalance;
 
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
+  uint256 public onRampGas;
   address public truth;
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327
+  error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
+  error ExcessSlippage(); // 0x5668e7fc
+  error FeedFailure(); // 0x6148950d
+  error InvalidCallback(); // 0xf7a632f5
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
   error InvalidT2Key(); // 0xf4fc87a4
@@ -67,9 +78,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error MissingTruth(); // 0xd1585e94
   error NotAnAuthor(); // 0x157b0512
   error NotEnoughAuthors(); // 0x3a6a875c
+  error NothingToRecover(); // 0xaba3a548
+  error RelayerOnly(); // 0x7378cebb
   error RootHashIsUsed(); // 0x2c8a3b6e
   error T1AddressInUse(address); // 0x78f22dd1
   error T2KeyInUse(bytes32); // 0x02f3935c
+  error TransferFailed(); // 0x90b8ec18
   error TxIdIsUsed(); // 0x7edd16f0
   error WindowExpired(); // 0x7bbfb6fe
 
@@ -99,6 +113,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
+    onRampGas = 110000;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
   }
 
@@ -247,6 +262,89 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     IERC20Permit(token).permit(lifter, address(this), amount, deadline, v, r, s);
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(lifter), _lift(lifter, token, amount));
   }
+
+  /**
+   * @dev Registers a relayer for proxying user on-ramp completions
+   */
+  function registerRelayer(address relayer) external onlyOwner {
+    if (relayerBalance[relayer] == 0) {
+      relayerBalance[relayer] = 1; // minimizes storage R/W by using trace balance to denote a registered relayer
+      emit LogRelayerRegistered(relayer);
+    } else revert(); // relayer already registered
+  }
+
+  /**
+   * @dev Deregisters an existing relayer
+   */
+  function deregisterRelayer(address relayer) external onlyOwner {
+    int256 balance = relayerBalance[relayer];
+    if (balance == 0) revert(); // no such relayer
+    relayerBalance[relayer] = 0;
+    if (balance > 1) IERC20(usdc).transfer(relayer, uint256(balance - 1)); // transfer any unclaimed USDC
+    emit LogRelayerDeregistered(relayer);
+  }
+
+  /**
+   * @dev Adjusts the gas for the on-ramp
+   */
+  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
+    onRampGas = _onRampGas;
+  }
+
+  /**
+   * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
+   */
+  function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
+    int256 balance = relayerBalance[msg.sender];
+    if (balance < 1) revert RelayerOnly();
+    unchecked {
+      uint256 usdcTxCost = (tx.gasprice * onRampGas) / usdcEth();
+      if (amount > usdcTxCost) {
+        IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
+        IERC20(usdc).transferFrom(user, address(this), amount);
+        relayerBalance[msg.sender] = balance + int256(usdcTxCost);
+        emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
+      } else revert AmountTooLow();
+    }
+  }
+
+  /**
+   * @dev Allows relayers to recover their ETH costs
+   */
+  function recoverCosts() external {
+    int256 balance = relayerBalance[msg.sender];
+    if (balance < 2) revert NothingToRecover();
+    relayerBalance[msg.sender] = 1; // retain trace registration balance
+    IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, ''); // triggers callback to take the funds
+    uint256 ethAmount = IERC20(weth).balanceOf(address(this));
+    unchecked {
+      if (ethAmount < (uint256(balance) * usdcEth() * 985) / 1000) revert ExcessSlippage();
+    }
+    IWETH9(weth).withdraw(ethAmount);
+    (bool success, ) = msg.sender.call{ value: ethAmount }('');
+    if (!success) revert TransferFailed();
+  }
+
+  /**
+   * @dev Returns the current Wei value of 1 USDC
+   */
+  function usdcEth() public view returns (uint256 price) {
+    unchecked {
+      price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / 1e6;
+    }
+    if (price == 0) revert FeedFailure();
+  }
+
+  /**
+   * @dev Only callable by the Uniswap pool to complete the swap in recoverCosts
+   */
+  function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
+    if (msg.sender != pool) revert InvalidCallback();
+    IERC20(usdc).transfer(msg.sender, uint256(amount0Delta));
+  }
+
+  // Allows the contract to receive ETH (from WETH withdrawal).
+  receive() external payable {}
 
   /** @dev Checks a lower proof. Returns the details, proof validity, and claim status.
    * For unclaimed lowers, if the required confirmations exceeds those provided the proof will need to be regenerated.

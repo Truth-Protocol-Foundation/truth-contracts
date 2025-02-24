@@ -20,6 +20,8 @@
 - Handles:
   - Adding, activating and removing authors (TN block creators) by author consensus.
   - Periodically checkpointing TN transactions (summarised as Merkle roots) by author consensus.
+  - "Gasless" completion of user on-ramping by registered relayer accounts. 
+  - Management of relayers.
   - The movement of ERC20 tokens between Ethereum and TN by:
     - **Lifting** - Locking received tokens in the contract and authorising their re-creation in the specified TN recipient account.
     - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.

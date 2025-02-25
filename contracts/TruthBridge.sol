@@ -53,11 +53,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   mapping(bytes32 => bool) public isPublishedRootHash;
   mapping(uint256 => bool) public isUsedT2TxId;
   mapping(bytes32 => bool) public hasLowered;
-  mapping(address => int256) public relayerBalance;
-
+  
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
   address public truth;
+
+  mapping(address => int256) public relayerBalance;
   uint256 public onRampGas;
 
   error AddressMismatch(); // 0x4cd87fb5

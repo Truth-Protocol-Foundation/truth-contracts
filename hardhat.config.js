@@ -83,7 +83,7 @@ task('upgrade')
       const signerBalance = await ethers.provider.getBalance(signer.address);
       const contractName = getContractName(args.contractType);
 
-      console.log(`\nUpgrading ${contractName} on ${network} using account ${signer.address}...`);
+      console.log(`\nUpgrading ${contractName} on ${network.name} using account ${signer.address}...`);
       const contractFactory = await ethers.getContractFactory(contractName);
       await upgrades.upgradeProxy(args.proxyAddress, contractFactory);
       const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));

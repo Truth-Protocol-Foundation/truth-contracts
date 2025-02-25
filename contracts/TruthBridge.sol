@@ -44,6 +44,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+  // Authors
   mapping(uint256 => bool) public isAuthor;
   mapping(uint256 => bool) public authorIsActive;
   mapping(address => uint256) public t1AddressToId;
@@ -53,12 +54,13 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   mapping(bytes32 => bool) public isPublishedRootHash;
   mapping(uint256 => bool) public isUsedT2TxId;
   mapping(bytes32 => bool) public hasLowered;
-  mapping(address => int256) public relayerBalance;
-
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
-  uint256 public onRampGas;
   address public truth;
+
+  // Relayers
+  mapping(address => int256) public relayerBalance;
+  uint256 public onRampGas;
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327

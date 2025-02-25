@@ -57,8 +57,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   uint256 public numActiveAuthors;
   uint256 public nextAuthorId;
-  uint256 public onRampGas;
   address public truth;
+  uint256 public onRampGas;
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327

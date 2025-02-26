@@ -3,6 +3,7 @@
 | Contract | Network | Environment | Address |
 |----------|---------|-------------|---------|
 | Truth Token | Mainnet | Production | [0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2](https://etherscan.io/address/0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2#readProxyContract) |
+| Truth Bridge | Mainnet | Production | [0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92](https://etherscan.io/address/0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92#readProxyContract) | 
 | Truth Token | Sepolia | Development | [0x25560bD4FD693922450D99188Fab23472e59015F](https://sepolia.etherscan.io/address/0x25560bD4FD693922450D99188Fab23472e59015F#readProxyContract) |
 | Truth Bridge | Sepolia | Development | [0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E](https://sepolia.etherscan.io/address/0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E#readProxyContract) |
 | Truth Token | Sepolia | Public Testnet | [0x6cAEfA7446E967018330cCeC5BA7A43956a45137](https://sepolia.etherscan.io/address/0x6cAEfA7446E967018330cCeC5BA7A43956a45137#readProxyContract) |

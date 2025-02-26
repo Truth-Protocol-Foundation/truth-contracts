@@ -15,13 +15,13 @@ const {
   ZERO_ADDRESS
 } = require('./helper.js');
 
-let bridge, truth, owner, user, t2PubKey;
+let bridge, truth, owner, user, notUser, t2PubKey;
 
 describe('User Functions', async () => {
   before(async () => {
     const numAuthors = 6;
     await init(numAuthors);
-    [owner, user] = getAccounts();
+    [owner, user, notUser] = getAccounts();
     truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
     bridge = await deployTruthBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);
@@ -66,13 +66,6 @@ describe('User Functions', async () => {
           .withArgs(truth.address, t2PubKey, amount);
       });
 
-      it('in proxy lifting tokens with a valid permit', async () => {
-        const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.connect(user).proxyLift(truth.address, owner.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s))
-          .to.emit(bridge, 'LogLifted')
-          .withArgs(truth.address, t2PubKey, amount);
-      });
-
       it('in lifting tokens to the prediction market and the t2 public key derived from the address of the sender', async () => {
         await truth.approve(bridge.address, amount);
         await expect(bridge.predictionMarketLift(truth.address, amount))
@@ -113,11 +106,17 @@ describe('User Functions', async () => {
         );
       });
 
-      it('attempting to proxy lift tokens without supplying a T2 public key', async () => {
-        const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(
-          bridge.connect(user).proxyLift(truth.address, owner.address, EMPTY_BYTES_32, amount, permit.deadline, permit.v, permit.r, permit.s)
-        ).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+      it('attempting to proxy lift tokens to the prediction market with an invalid lifter address', async () => {
+        const userAmount = 1000n;
+        await truth.transfer(user.address, userAmount);
+        const permit = await getPermit(truth, user, bridge, userAmount);
+        await expect(bridge.predictionMarketProxyLift(truth.address, notUser.address, userAmount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
+          truth,
+          `ERC2612InvalidSigner`
+        );
+        await expect(bridge.predictionMarketProxyLift(truth.address, user.address, userAmount, permit.deadline, permit.v, permit.r, permit.s))
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, await bridge.deriveT2PublicKey(user.address), userAmount);
       });
 
       it('attempting to lift more tokens than the T2 limit', async () => {
@@ -138,9 +137,6 @@ describe('User Functions', async () => {
           bridge,
           'EnforcedPause'
         );
-        await expect(
-          bridge.connect(user).proxyLift(truth.address, owner.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s)
-        ).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         await bridge.unpause();
       });
 
@@ -218,10 +214,9 @@ describe('User Functions', async () => {
       ClaimLower: 0,
       Lift: 1,
       PermitLift: 2,
-      ProxyLift: 3,
-      PredictionMarketLift: 4,
-      PredictionMarketPermitLift: 5,
-      PredictionMarketProxyLift: 6
+      PredictionMarketLift: 3,
+      PredictionMarketPermitLift: 4,
+      PredictionMarketProxyLift: 5
     };
     const amount = 100n;
     let reentrantToken;
@@ -245,11 +240,6 @@ describe('User Functions', async () => {
 
     it('the lift with permit re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PermitLift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
-    });
-
-    it('the proxy lift with permit re-entrancy check is triggered correctly', async () => {
-      await reentrantToken.setReentryPoint(reentryPoint.ProxyLift);
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 

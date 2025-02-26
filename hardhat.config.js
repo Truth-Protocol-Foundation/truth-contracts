@@ -96,6 +96,25 @@ task('upgrade')
     }
   });
 
+  task('manifest')
+  .addPositionalParam('contractType')
+  .addPositionalParam('proxyAddress')
+  .setAction(async (args, hre) => {
+    const { ethers, network } = hre;
+    let originalContract;
+    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    await hre.run('compile');
+
+    try {
+      const contractName = getContractName(args.contractType);
+      const contractFactory = await ethers.getContractFactory(contractName);
+      console.log(`Updating ${contractName} manifest for ${args.proxyAddress} on ${network.name}`);
+      await upgrades.forceImport(args.proxyAddress, contractFactory);
+    } finally {
+      if (originalContract) restoreContract(originalContract);
+    }
+  });
+
 function getInitArgs(args, network, signer) {
   let owner;
 

@@ -34,7 +34,6 @@
 |-------------------------------|-----------------------|-------------|---------------------------------|
 | **lift**                      | Yes                   | Lifter      | `bytes`                         |
 | **permitLift**                | No                    | Lifter      | `bytes32`                       |
-| **proxyLift**                 | No                    | Anyone      | `bytes32`                       |
 | **predictionMarketLift**      | Yes                   | Lifter      | Derived from lifter ETH address |
 | **predictionMarketPermitLift**| No                    | Lifter      | Derived from lifter ETH address |
 | **predictionMarketProxyLift** | No                    | Anyone      | Derived from lifter ETH address |

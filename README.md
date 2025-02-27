@@ -34,7 +34,6 @@
 |-------------------------------|-----------------------|-------------|---------------------------------|
 | **lift**                      | Yes                   | Lifter      | `bytes`                         |
 | **permitLift**                | No                    | Lifter      | `bytes32`                       |
-| **proxyLift**                 | No                    | Anyone      | `bytes32`                       |
 | **predictionMarketLift**      | Yes                   | Lifter      | Derived from lifter ETH address |
 | **predictionMarketPermitLift**| No                    | Lifter      | Derived from lifter ETH address |
 | **predictionMarketProxyLift** | No                    | Anyone      | Derived from lifter ETH address |
@@ -85,6 +84,9 @@ Note: when deploying on mainnet the contract `--owner` address must be specified
 #### Deploy Truth Token Implementation
 `npx hardhat implementation token --network <network>`
 
+#### Update Truth Token Manifest
+`npx hardhat manifest token <token_address> --network <network>`
+
 #### Deploy Truth Bridge
 `npx hardhat deploy bridge --token <token_address> [--owner owner_address] --network <network> --env <environment name>`
 
@@ -93,3 +95,6 @@ Note: when deploying on mainnet the contract `--owner` address must be specified
 
 #### Deploy Truth Bridge Implementation
 `npx hardhat implementation bridge --network <network>`
+
+#### Update Truth Bridge Manifest
+`npx hardhat manifest bridge <bridge_address> --network <network>`

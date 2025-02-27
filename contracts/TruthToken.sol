@@ -8,6 +8,12 @@ import '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 contract TruthToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, Ownable2StepUpgradeable, UUPSUpgradeable {
+
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+  
   function initialize(string calldata name, string calldata symbol_, uint256 supply, address owner_) public initializer {
     __Ownable_init(owner_);
     __Ownable2Step_init();

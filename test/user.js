@@ -156,11 +156,11 @@ describe('User Functions', async () => {
 
       it('attempting to lift more tokens than are approved', async () => {
         await truth.approve(bridge.address, 100n);
-        await expect(bridge.lift(truth.address, t2PubKey, 200n)).to.be.rejectedWith(truth, 'ERC20InsufficientAllowance');
+        await expect(bridge.lift(truth.address, t2PubKey, 200n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
       });
 
       it('attempting to lift more tokens than the sender holds', async () => {
-        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n)).to.be.rejectedWith(truth, 'ERC20InsufficientAllowance');
+        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
       });
     });
   });

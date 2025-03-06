@@ -96,7 +96,7 @@ task('upgrade')
     }
   });
 
-  task('manifest')
+task('manifest')
   .addPositionalParam('contractType')
   .addPositionalParam('proxyAddress')
   .setAction(async (args, hre) => {
@@ -110,6 +110,33 @@ task('upgrade')
       const contractFactory = await ethers.getContractFactory(contractName);
       console.log(`Updating ${contractName} manifest for ${args.proxyAddress} on ${network.name}`);
       await upgrades.forceImport(args.proxyAddress, contractFactory);
+    } finally {
+      if (originalContract) restoreContract(originalContract);
+    }
+  });
+
+task('validate')
+  .addPositionalParam('contractType')
+  .addPositionalParam('proxyAddress')
+  .setAction(async (args, hre) => {
+    const { ethers, network } = hre;
+    let originalContract;
+    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    await hre.run('compile');
+
+    try {
+      const contractName = getContractName(args.contractType);
+      const contractFactory = await ethers.getContractFactory(contractName);
+
+      console.log(`\nValidating new ${contractName} implementation...`);
+      await upgrades.validateImplementation(contractFactory);
+
+      console.log(`\nValidating upgrade safety for proxy at ${args.proxyAddress}...`);
+      await upgrades.validateUpgrade(args.proxyAddress, contractFactory);
+
+      console.log('\nResult: Safe for upgrade');
+    } catch (error) {
+      console.error('\nResult:', error);
     } finally {
       if (originalContract) restoreContract(originalContract);
     }

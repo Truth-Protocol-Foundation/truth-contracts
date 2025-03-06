@@ -110,10 +110,9 @@ describe('User Functions', async () => {
         const userAmount = 1000n;
         await truth.transfer(user.address, userAmount);
         const permit = await getPermit(truth, user, bridge, userAmount);
-        await expect(bridge.predictionMarketProxyLift(truth.address, notUser.address, userAmount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          truth,
-          `ERC2612InvalidSigner`
-        );
+        await expect(
+          bridge.predictionMarketProxyLift(truth.address, notUser.address, userAmount, permit.deadline, permit.v, permit.r, permit.s)
+        ).to.be.revertedWithCustomError(truth, `ERC2612InvalidSigner`);
         await expect(bridge.predictionMarketProxyLift(truth.address, user.address, userAmount, permit.deadline, permit.v, permit.r, permit.s))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, await bridge.deriveT2PublicKey(user.address), userAmount);

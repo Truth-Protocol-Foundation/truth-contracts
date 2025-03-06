@@ -1,6 +1,6 @@
 const { deployTruthBridge, deployTruthToken, expect, getAccounts, getPermit, getUSDC, init, ONE_HUNDRED_BILLION, ONE_USDC, sendUSDC } = require('./helper.js');
 
-let bridge, truth, usdc, owner, otherAccount, relayer1, relayer2, user, t2PubKey;
+let bridge, truth, usdc, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
 describe('Relayer Functions', async () => {
   before(async () => {
@@ -11,7 +11,16 @@ describe('Relayer Functions', async () => {
     bridge = await deployTruthBridge(truth, owner);
     usdc = await getUSDC();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
+    const onRampGas = 105000n;
+    await bridge.setOnRampGas(onRampGas);
   });
+
+  async function getTxCost() {
+    const { gasPrice } = await ethers.provider.getFeeData();
+    const txGas = await bridge.onRampGas();
+    const ethPrice = await bridge.usdcEth();
+    return (gasPrice * txGas) / ethPrice;
+  }
 
   context('Registering relayers', async () => {
     context('succeeds', async () => {
@@ -70,34 +79,28 @@ describe('Relayer Functions', async () => {
   context('Setting onRampGas', async () => {
     context('succeeds', async () => {
       it('when the caller is the owner', async () => {
-        let onRampGas = await bridge.onRampGas();
-        onRampGas = onRampGas + 1n;
-        await bridge.setOnRampGas(onRampGas);
-        expect(await bridge.onRampGas()).to.equal(onRampGas);
+        const onRampGas = await bridge.onRampGas();
+        await bridge.setOnRampGas(onRampGas + 1n);
+        expect(await bridge.onRampGas()).to.equal(onRampGas + 1n);
       });
     });
 
     context('fails', async () => {
       it('when the caller is not the owner', async () => {
-        await expect(bridge.connect(otherAccount).setOnRampGas(1)).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
+        await expect(bridge.connect(otherAccount).setOnRampGas(1n)).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
       });
     });
   });
 
-  context('Completing on-ramping', async () => {
-    async function getTxCost() {
-      const { gasPrice } = await ethers.provider.getFeeData();
-      return (gasPrice * (await bridge.onRampGas())) / (await bridge.usdcEth());
-    }
-
+  context('Relayer lifting', async () => {
     context('succeeds', async () => {
       before(async () => {
         await bridge.registerRelayer(relayer1.address);
+        await sendUSDC(user, 100n * ONE_USDC);
       });
 
       it('when called by a relayer with a valid user permit', async () => {
         const amount = 10n * ONE_USDC;
-        await sendUSDC(user, amount);
         const initialBalance = await usdc.balanceOf(bridge.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         const expectedFee = await getTxCost();
@@ -111,7 +114,6 @@ describe('Relayer Functions', async () => {
     context('fails', async () => {
       it('if the caller is not a relayer', async () => {
         const amount = 1n * ONE_USDC;
-        await sendUSDC(user, amount);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(otherAccount).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,
@@ -120,20 +122,20 @@ describe('Relayer Functions', async () => {
       });
 
       it('if the permit is invalid', async () => {
-        const amount = 10n * ONE_USDC;
+        const amount = 1n * ONE_USDC;
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(relayer1).completeOnRamp(amount, otherAccount.address, permit.v, permit.r, permit.s)).to.be.reverted;
       });
 
       it('if the amount will not cover the tx cost', async () => {
-        const txCost = await getTxCost();
-        await sendUSDC(user, txCost * 2n);
+        let txCost = await getTxCost();
         let amount = txCost - 1n;
         let permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(relayer1).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,
           'AmountTooLow'
         );
+        txCost = await getTxCost();
         amount = txCost + 1n;
         permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await bridge.connect(relayer1).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s);
@@ -141,7 +143,7 @@ describe('Relayer Functions', async () => {
     });
   });
 
-  context('Recovering costs', async () => {
+  context('Recovering ETH costs', async () => {
     context('succeeds', async () => {
       it('when called by a relayer with an unclaimed balance', async () => {
         await bridge.connect(relayer1).recoverCosts();
@@ -156,32 +158,41 @@ describe('Relayer Functions', async () => {
       it('when the Uniswap callback is invoked by any account other than the permitted pool', async () => {
         await expect(bridge.uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCallback');
       });
+
+      it('if the relayer rejects ETH (for coverage only)', async function () {
+        if (!process.env.COVERAGE) this.skip();
+        const contract = await ethers.getContractFactory('RejectingRelayer');
+        const rejectingRelayer = await contract.deploy(bridge.address);
+        rejectingRelayer.address = await rejectingRelayer.getAddress();
+        await bridge.registerRelayer(rejectingRelayer.address);
+        // Inflate the cost as test coverage reduces the gas price to 1
+        const onRampGas = await bridge.onRampGas();
+        await bridge.setOnRampGas(onRampGas * 1000000n);
+        const amount = 100n * ONE_USDC;
+        await sendUSDC(user, amount);
+        const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
+        await rejectingRelayer.completeOnRamp(amount, user.address, permit.v, permit.r, permit.s);
+        await expect(rejectingRelayer.recoverCosts()).to.be.revertedWithCustomError(bridge, 'TransferFailed');
+        await bridge.deregisterRelayer(rejectingRelayer.address);
+        await bridge.setOnRampGas(onRampGas);
+      });
     });
   });
 
-  context('Completing the on-ramp', async () => {
-    context('succeeds', async () => {
-      async function doOnRamp() {
-        const amount = 10n * ONE_USDC;
-        await sendUSDC(user, amount);
-        const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        const { gasPrice } = await ethers.provider.getFeeData();
-        const expectedFee = (gasPrice * (await bridge.onRampGas())) / (await bridge.usdcEth());
-        expect(await bridge.connect(relayer1).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s))
-          .to.emit(bridge, 'LogLiftedToPredictionMarket')
-          .withArgs(usdc.address, t2PubKey, amount - expectedFee);
-      }
+  context('Repeat calls (for gas estimation)', async () => {
+    async function doRelayerLift() {
+      const amount = 10n * ONE_USDC;
+      await sendUSDC(user, amount);
+      const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
+      await bridge.connect(relayer1).completeOnRamp(amount, user.address, permit.v, permit.r, permit.s);
+    }
 
-      it('when called by a relayer', async () => {
-        const initialBalance = await ethers.provider.getBalance(relayer1.address);
-        for (i = 0; i < 100; i++) {
-          await doOnRamp();
-        }
-
-        await bridge.connect(relayer1).recoverCosts();
-        const gainOrLoss = (await ethers.provider.getBalance(relayer1.address)) - initialBalance;
-        // console.log(gainOrLoss);
-      });
+    it('relayer lift', async () => {
+      const initialBalance = await ethers.provider.getBalance(relayer1.address);
+      for (i = 0; i < 100; i++) await doRelayerLift();
+      await bridge.connect(relayer1).recoverCosts();
+      const gainOrLoss = (await ethers.provider.getBalance(relayer1.address)) - initialBalance;
+      console.log(gainOrLoss);
     });
   });
 });

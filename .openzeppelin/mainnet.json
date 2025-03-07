@@ -471,7 +471,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(PausableStorage)274_storage": {
+          "t_struct(PausableStorage)597_storage": {
             "label": "struct PausableUpgradeable.PausableStorage",
             "members": [
               {
@@ -483,7 +483,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(ReentrancyGuardStorage)338_storage": {
+          "t_struct(ReentrancyGuardStorage)661_storage": {
             "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
             "members": [
               {

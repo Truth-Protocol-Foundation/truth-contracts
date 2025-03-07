@@ -227,7 +227,7 @@ function printErrorCodes() {
     'MissingTruth()',
     'NotAnAuthor()',
     'NotEnoughAuthors()',
-    'NothingToRecover()',
+    'NoRefundDue()',
     'RelayerOnly()',
     'RootHashIsUsed()',
     'T1AddressInUse(address)',

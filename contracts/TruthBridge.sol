@@ -7,7 +7,7 @@ pragma solidity 0.8.28;
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
- * Enables gas-free on-ramping of USDC funds via relayers.
+ * Enables gas-free lifting of USDC funds via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
@@ -60,7 +60,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
   // Relayers
   mapping(address => int256) public relayerBalance;
-  uint256 public onRampGas;
+  /// @custom:oz-renamed-from onRampGas
+  uint256 public relayerLiftGas;
 
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327
@@ -68,7 +69,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
   error ExcessSlippage(); // 0x5668e7fc
-  error FeedFailure(); // 0x6148950d
   error InvalidCallback(); // 0xf7a632f5
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
@@ -80,7 +80,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error MissingTruth(); // 0xd1585e94
   error NotAnAuthor(); // 0x157b0512
   error NotEnoughAuthors(); // 0x3a6a875c
-  error NothingToRecover(); // 0xaba3a548
+  error NoRefundDue(); // 0x56b6c1ab
   error RelayerOnly(); // 0x7378cebb
   error RootHashIsUsed(); // 0x2c8a3b6e
   error T1AddressInUse(address); // 0x78f22dd1
@@ -115,7 +115,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (_truth == address(0)) revert MissingTruth();
     truth = _truth;
     nextAuthorId = 1;
-    onRampGas = 110000;
     _initialiseAuthors(t1Addresses, t1PubKeysLHS, t1PubKeysRHS, t2PubKeys);
   }
 
@@ -269,35 +268,39 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Adjusts the gas for the on-ramp
+   * @dev Adjusts the gas for relayer operations
    */
-  function setOnRampGas(uint256 _onRampGas) external onlyOwner {
-    onRampGas = _onRampGas;
+  function setRelayerGas(uint256 liftGas) external onlyOwner {
+    relayerLiftGas = liftGas;
   }
 
   /**
    * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
-  function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
+  function relayerLift(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
+
     unchecked {
-      uint256 usdcTxCost = (tx.gasprice * onRampGas) / usdcEth();
+      uint256 usdcTxCost = (tx.gasprice * relayerLiftGas) / usdcEth();
+
       if (amount > usdcTxCost) {
         IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
         IERC20(usdc).transferFrom(user, address(this), amount);
         relayerBalance[msg.sender] = balance + int256(usdcTxCost);
         emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount - usdcTxCost);
-      } else revert AmountTooLow();
+      } else {
+        revert AmountTooLow();
+      }
     }
   }
 
   /**
    * @dev Allows relayers to recover their ETH costs
    */
-  function recoverCosts() external {
+  function relayerRefund() external {
     int256 balance = relayerBalance[msg.sender];
-    if (balance < 2) revert NothingToRecover();
+    if (balance < 2) revert NoRefundDue();
     relayerBalance[msg.sender] = 1; // retain trace registration balance
     IUniswapV3Pool(pool).swap(address(this), true, balance, UNISWAP_SRPLX96, ''); // triggers callback to take the funds
     uint256 ethAmount = IERC20(weth).balanceOf(address(this));
@@ -316,11 +319,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     unchecked {
       price = uint256(IChainlinkV3Aggregator(feed).latestAnswer()) / 1e6;
     }
-    if (price == 0) revert FeedFailure();
   }
 
   /**
-   * @dev Only callable by the Uniswap pool to complete the swap in recoverCosts
+   * @dev Only callable by the Uniswap pool to complete the swap in relayerRefund
    */
   function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
     if (msg.sender != pool) revert InvalidCallback();

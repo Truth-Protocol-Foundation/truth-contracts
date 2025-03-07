@@ -21,9 +21,9 @@ interface ITruthBridge {
   function predictionMarketProxyLift(address token, address lifter, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;
-  function setOnRampGas(uint256 onRampGas) external;
-  function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external;
-  function recoverCosts() external;
+  function setRelayerGas(uint256 liftGas) external;
+  function relayerLift(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external;
+  function relayerRefund() external;
   function usdcEth() external view returns (uint256 price);
   function claimLower(bytes calldata proof) external;
   function checkLower(

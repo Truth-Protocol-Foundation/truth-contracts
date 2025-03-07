@@ -150,14 +150,8 @@ describe('Owner Functions', async () => {
     context('fails', async () => {
       async function deployAndCatchInitError(expectedError) {
         const initArgs = [initVals.truth, initVals.t1Addresses, initVals.t1PubKeysLHS, initVals.t1PubKeysRHS, initVals.t2PubKeys, initVals.owner];
-        let actualError = '';
-        try {
-          await upgrades.deployProxy(await ethers.getContractFactory('TruthBridge'), initArgs, { kind: 'uups' });
-        } catch (error) {
-          actualError = error.toString().split("custom error '")[1].split('(')[0];
-        } finally {
-          expect(actualError).to.equal(expectedError);
-        }
+        const TruthBridge = await ethers.getContractFactory('TruthBridge');
+        await expect(upgrades.deployProxy(TruthBridge, initArgs, { kind: 'uups' })).to.be.revertedWithCustomError(TruthBridge, expectedError);
       }
 
       beforeEach(async () => {

@@ -110,10 +110,9 @@ describe('User Functions', async () => {
         const userAmount = 1000n;
         await truth.transfer(user.address, userAmount);
         const permit = await getPermit(truth, user, bridge, userAmount);
-        await expect(bridge.predictionMarketProxyLift(truth.address, notUser.address, userAmount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          truth,
-          `ERC2612InvalidSigner`
-        );
+        await expect(
+          bridge.predictionMarketProxyLift(truth.address, notUser.address, userAmount, permit.deadline, permit.v, permit.r, permit.s)
+        ).to.be.revertedWithCustomError(truth, `ERC2612InvalidSigner`);
         await expect(bridge.predictionMarketProxyLift(truth.address, user.address, userAmount, permit.deadline, permit.v, permit.r, permit.s))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, await bridge.deriveT2PublicKey(user.address), userAmount);
@@ -157,11 +156,11 @@ describe('User Functions', async () => {
 
       it('attempting to lift more tokens than are approved', async () => {
         await truth.approve(bridge.address, 100n);
-        await expect(bridge.lift(truth.address, t2PubKey, 200n)).to.be.rejectedWith(truth, 'ERC20InsufficientAllowance');
+        await expect(bridge.lift(truth.address, t2PubKey, 200n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
       });
 
       it('attempting to lift more tokens than the sender holds', async () => {
-        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n)).to.be.rejectedWith(truth, 'ERC20InsufficientAllowance');
+        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
       });
     });
   });

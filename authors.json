@@ -53,7 +53,7 @@
       "t2PublicKey": "0x7803a61c895984f9c7a7e2900d26cdb8c558ee58e7df9845d7cd4600ef82ac44"
     }
   ],
-  "mainnet": [
+  "production": [
     {
       "ethAddress": "0xadb107062b47aa6124b6b8c373f706480e968b1a",
       "ethUncompressedPublicKey": "0x04e6b029409e6a81b21299e7208b1a6a4d869d7ba9735fd978469b8f2f32934dab2f3614a60d8e75be654b445c0821c7521f469b55943fa406da09bdd4e57da607",

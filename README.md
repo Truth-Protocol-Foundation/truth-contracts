@@ -21,11 +21,11 @@
 - Handles:
   - Adding, activating and removing authors (TN block creators) by author consensus.
   - Periodically checkpointing TN transactions (summarised as Merkle roots) by author consensus.
-  - "Gasless" completion of user on-ramping by registered relayer accounts. 
-  - Management of relayers.
   - The movement of ERC20 tokens between Ethereum and TN by:
     - **Lifting** - Locking received tokens in the contract and authorising their re-creation in the specified TN recipient account.
     - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.
+  - "Gasless" lifting via relayers (USDC only).
+  - Management of relayers.
 - Upgradeable.
 
 ## Lift Methods
@@ -78,6 +78,9 @@ Note: when deploying on mainnet the contract `--owner` address must be specified
 #### Deploy Truth Token
 `npx hardhat deploy token [--owner owner_address] --network <network>`
 
+#### Validate Truth Token Implementation
+`npx hardhat validate token <token_address> --network <network>`
+
 #### Upgrade Truth Token
 `npx hardhat upgrade token <token_address> --network <network>`
 
@@ -89,6 +92,9 @@ Note: when deploying on mainnet the contract `--owner` address must be specified
 
 #### Deploy Truth Bridge
 `npx hardhat deploy bridge --token <token_address> [--owner owner_address] --network <network> --env <environment name>`
+
+#### Validate Truth Bridge Implementation
+`npx hardhat validate bridge <bridge_address> --network <network>`
 
 #### Upgrade Truth Bridge
 `npx hardhat upgrade bridge <bridge_address> --network <network>`

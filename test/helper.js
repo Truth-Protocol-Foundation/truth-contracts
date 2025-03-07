@@ -215,7 +215,6 @@ function printErrorCodes() {
     'BadConfirmations()',
     'CannotChangeT2Key(bytes32)',
     'ExcessSlippage()',
-    'FeedFailure()',
     'InvalidCallback()',
     'InvalidProof()',
     'InvalidT1Key()',

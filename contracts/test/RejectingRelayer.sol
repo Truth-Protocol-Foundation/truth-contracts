@@ -15,11 +15,11 @@ contract RejectingRelayer {
     revert();
   }
 
-  function completeOnRamp(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
-    _bridge.completeOnRamp(amount, user, v, r, s);
+  function relayerLift(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
+    _bridge.relayerLift(amount, user, v, r, s);
   }
 
-  function recoverCosts() external {
-    _bridge.recoverCosts();
+  function relayerRefund() external {
+    _bridge.relayerRefund();
   }
 }

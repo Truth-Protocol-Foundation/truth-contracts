@@ -54,7 +54,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(EIP712Storage)610_storage": {
+          "t_struct(EIP712Storage)724_storage": {
             "label": "struct EIP712Upgradeable.EIP712Storage",
             "members": [
               {

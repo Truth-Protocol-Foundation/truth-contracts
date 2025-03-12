@@ -38,9 +38,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant LOWER_BASE_GAS = 84630;
   uint256 private constant LIFT_WRITE_TO_ZERO_GAS_DECREASE = 4795;
   uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17115;
-  uint256 private constant REFUND_GAS = 84425;
-  uint256 private constant BUFFER = 10250; // +2.5%
-  uint256 private constant SLIPPAGE = 9900; // 1% below Chainlink (including fees)
+  uint256 private constant REFUND_GAS = 104350;
+  uint256 private constant BUFFER = 10100;
+  uint256 private constant SLIPPAGE = 9900;
   uint256 private constant TX_PER_REFUND = 20;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
@@ -76,7 +76,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
-  error ExcessSlippage(); // 0x5668e7fc
   error InvalidCaller(); // 0x48f5c3ed
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
@@ -557,11 +556,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (msg.sender != address(this)) revert InvalidCaller();
 
     IUniswapV3Pool(pool).swap(address(this), true, balance, MIN_SQRT_RATIO + 1, ''); // triggers uniswapV3SwapCallback
-
     uint256 ethAmount = IERC20(weth).balanceOf(address(this));
+
     unchecked {
-      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / 10000) revert ExcessSlippage();
+      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / 10000) revert();
     }
+
     IWETH9(weth).withdraw(ethAmount);
     payable(relayer).transfer(ethAmount);
   }

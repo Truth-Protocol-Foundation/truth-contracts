@@ -18,7 +18,7 @@ let owner, r1, r2, r3, u1, u2, u3, u4, u5, u6, u7;
 let users = [];
 let relayers = [];
 
-describe('Relayer Tuning', async () => {
+describe('Relayer Validation and Tuning', async () => {
   before(async () => {
     const numAuthors = 6;
     await init(numAuthors);

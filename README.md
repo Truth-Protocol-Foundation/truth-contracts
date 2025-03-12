@@ -24,7 +24,7 @@
   - The movement of ERC20 tokens between Ethereum and TN by:
     - **Lifting** - Locking received tokens in the contract and authorising their re-creation in the specified TN recipient account.
     - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.
-  - "Gasless" lifting via relayers (USDC only).
+  - "Gasless" lifting and lowering via relayers (USDC only).
   - Management of relayers.
 - Upgradeable.
 

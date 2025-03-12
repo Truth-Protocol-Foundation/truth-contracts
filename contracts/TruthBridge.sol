@@ -69,7 +69,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
   error ExcessSlippage(); // 0x5668e7fc
-  error InvalidCallback(); // 0xf7a632f5
+  error InvalidCaller(); // 0x48f5c3ed
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
   error InvalidT2Key(); // 0xf4fc87a4
@@ -325,7 +325,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    * @dev Only callable by the Uniswap pool to complete the swap in relayerRefund
    */
   function uniswapV3SwapCallback(int256 amount0Delta, int256 /* amount1Delta */, bytes calldata /* data */) external {
-    if (msg.sender != pool) revert InvalidCallback();
+    if (msg.sender != pool) revert InvalidCaller();
     IERC20(usdc).transfer(msg.sender, uint256(amount0Delta));
   }
 
@@ -383,25 +383,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
    * @dev Claims the funds due to the recipient specified in the proof.
    */
   function claimLower(bytes calldata proof) external whenNotPaused nonReentrant {
-    if (proof.length < MINIMUM_PROOF_LENGTH) revert InvalidProof();
-
-    address token;
-    uint256 amount;
-    address recipient;
-    uint32 lowerId;
-
-    assembly {
-      token := shr(96, calldataload(proof.offset))
-      amount := calldataload(add(proof.offset, 20))
-      recipient := shr(96, calldataload(add(proof.offset, 52)))
-      lowerId := shr(224, calldataload(add(proof.offset, 72)))
-    }
-
-    bytes32 lowerHash = keccak256(abi.encodePacked(token, amount, recipient, lowerId));
-    if (hasLowered[lowerHash]) revert LowerIsUsed();
-    hasLowered[lowerHash] = true;
-
-    _verifyConfirmations(true, lowerHash, proof[LOWER_DATA_LENGTH:]);
+    (address token, uint256 amount, address recipient, uint32 lowerId) = _extractLowerData(proof);
+    _processLower(token, amount, recipient, lowerId, proof);
     IERC20(token).safeTransfer(recipient, amount);
 
     emit LogLowerClaimed(lowerId);
@@ -495,6 +478,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     }
   }
 
+  function _extractLowerData(bytes calldata proof) private pure returns (address token, uint256 amount, address recipient, uint32 lowerId) {
+    if (proof.length < MINIMUM_PROOF_LENGTH) revert InvalidProof();
+    assembly {
+      token := shr(96, calldataload(proof.offset))
+      amount := calldataload(add(proof.offset, 20))
+      recipient := shr(96, calldataload(add(proof.offset, 52)))
+      lowerId := shr(224, calldataload(add(proof.offset, 72)))
+    }
+  }
+
   function _lift(address lifter, address token, uint256 amount) private returns (uint256) {
     uint256 existingBalance = IERC20(token).balanceOf(address(this));
     IERC20(token).safeTransferFrom(lifter, address(this), amount);
@@ -502,6 +495,13 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     if (newBalance <= existingBalance) revert LiftFailed();
     if (newBalance > T2_TOKEN_LIMIT) revert LiftLimitHit();
     return newBalance - existingBalance;
+  }
+
+  function _processLower(address token, uint256 amount, address recipient, uint32 lowerId, bytes calldata proof) private {
+    bytes32 lowerHash = keccak256(abi.encodePacked(token, amount, recipient, lowerId));
+    if (hasLowered[lowerHash]) revert LowerIsUsed();
+    hasLowered[lowerHash] = true;
+    _verifyConfirmations(true, lowerHash, proof[LOWER_DATA_LENGTH:]);
   }
 
   function _recoverAuthorId(bytes32 prefixedMsgHash, uint256 confirmationsOffset, uint256 confirmationsIndex) private view returns (uint256 id) {

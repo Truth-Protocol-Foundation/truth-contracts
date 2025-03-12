@@ -7,9 +7,11 @@ interface ITruthBridge {
   event LogLifted(address indexed token, bytes32 indexed t2PubKey, uint256 amount);
   event LogLiftedToPredictionMarket(address indexed token, bytes32 indexed t2PubKey, uint256 amount);
   event LogLowerClaimed(uint32 indexed lowerId);
+  event LogRelayerLowered(uint32 indexed lowerId, uint256 amount);
   event LogRootPublished(bytes32 indexed rootHash, uint32 indexed t2TxId);
   event LogRelayerRegistered(address indexed relayer);
   event LogRelayerDeregistered(address indexed relayer);
+  event LogRelayerRefundFailed(address indexed relayer, int256 balance);
 
   function addAuthor(bytes calldata t1PubKey, bytes32 t2PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function removeAuthor(bytes32 t2PubKey, bytes calldata t1PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
@@ -21,9 +23,8 @@ interface ITruthBridge {
   function predictionMarketProxyLift(address token, address lifter, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;
-  function setRelayerGas(uint256 liftGas) external;
   function relayerLift(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external;
-  function relayerRefund() external;
+  function relayerLower(bytes calldata proof) external;
   function usdcEth() external view returns (uint256 price);
   function claimLower(bytes calldata proof) external;
   function checkLower(

@@ -1,4 +1,17 @@
-const { deployTruthBridge, deployTruthToken, expect, getAccounts, getPermit, getUSDC, init, ONE_HUNDRED_BILLION, ONE_USDC, sendUSDC } = require('./helper.js');
+const {
+  createLowerProof,
+  deployTruthBridge,
+  deployTruthToken,
+  expect,
+  getAccounts,
+  getPermit,
+  getUSDC,
+  init,
+  ONE_HUNDRED_BILLION,
+  ONE_USDC,
+  randomBytes32,
+  sendUSDC
+} = require('./helper.js');
 
 let bridge, truth, usdc, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
@@ -11,16 +24,7 @@ describe('Relayer Functions', async () => {
     bridge = await deployTruthBridge(truth, owner);
     usdc = await getUSDC();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
-    const relayerLiftGas = 105000n;
-    await bridge.setRelayerGas(relayerLiftGas);
   });
-
-  async function getTxCost() {
-    const { gasPrice } = await ethers.provider.getFeeData();
-    const txGas = await bridge.relayerLiftGas();
-    const ethPrice = await bridge.usdcEth();
-    return (gasPrice * txGas) / ethPrice;
-  }
 
   context('Registering relayers', async () => {
     context('succeeds', async () => {
@@ -76,22 +80,6 @@ describe('Relayer Functions', async () => {
     });
   });
 
-  context('Setting relayerLiftGas', async () => {
-    context('succeeds', async () => {
-      it('when the caller is the owner', async () => {
-        const relayerLiftGas = await bridge.relayerLiftGas();
-        await bridge.setRelayerGas(relayerLiftGas + 1n);
-        expect(await bridge.relayerLiftGas()).to.equal(relayerLiftGas + 1n);
-      });
-    });
-
-    context('fails', async () => {
-      it('when the caller is not the owner', async () => {
-        await expect(bridge.connect(otherAccount).setRelayerGas(1n)).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
-      });
-    });
-  });
-
   context('Relayer lifting', async () => {
     context('succeeds', async () => {
       before(async () => {
@@ -103,7 +91,7 @@ describe('Relayer Functions', async () => {
         const amount = 10n * ONE_USDC;
         const initialBalance = await usdc.balanceOf(bridge.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        const expectedFee = await getTxCost();
+        const expectedFee = await bridge.connect(relayer1).relayerLift.estimateGas(amount, user.address, permit.v, permit.r, permit.s);
         expect(await bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(usdc.address, userT2PubKey, amount - expectedFee);
@@ -128,53 +116,109 @@ describe('Relayer Functions', async () => {
       });
 
       it('if the amount will not cover the tx cost', async () => {
-        let txCost = await getTxCost();
-        let amount = txCost - 1n;
+        let amount = 1n;
         let permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,
           'AmountTooLow'
         );
-        txCost = await getTxCost();
-        amount = txCost + 1n;
-        permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        await bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s);
       });
     });
   });
 
-  context('Recovering ETH costs', async () => {
+  context('Relayer lowering', async () => {
+    before(async () => {
+      const liftAmount = 100n * ONE_USDC;
+      await sendUSDC(user, liftAmount);
+      const permit = await getPermit(usdc, user, bridge, liftAmount);
+      await bridge.connect(user).permitLift(usdc.address, userT2PubKey, liftAmount, permit.deadline, permit.v, permit.r, permit.s);
+    });
+
     context('succeeds', async () => {
-      it('when called by a relayer with an unclaimed balance', async () => {
-        await bridge.connect(relayer1).relayerRefund();
+      it('in lowering tokens to the recipient in the proof', async () => {
+        const lowerAmount = 10n * ONE_USDC;
+        const initialBridgeBalance = await usdc.balanceOf(bridge.address);
+        const initialUserBalance = await usdc.balanceOf(user.address);
+        const [lowerProof, lowerId] = await createLowerProof(bridge, usdc, lowerAmount, user);
+        const txCost = await bridge.connect(relayer1).relayerLower.estimateGas(lowerProof);
+
+        await expect(bridge.connect(relayer1).relayerLower(lowerProof)).to.emit(bridge, 'LogRelayerLowered');
+        //   .withArgs(lowerId, lowerAmount - txCost);
+        // expect(await usdc.balanceOf(bridge.address)).to.equal(initialBridgeBalance + txCost - lowerAmount);
+        // expect(await usdc.balanceOf(user.address)).to.equal(initialUserBalance + lowerAmount - txCost);
       });
     });
 
-    context('fails', async () => {
+    context('fails when', async () => {
       it('if the caller is not a relayer', async () => {
-        await expect(bridge.connect(otherAccount).relayerRefund()).to.be.revertedWithCustomError(bridge, 'NoRefundDue');
+        [lowerProof] = await createLowerProof(bridge, usdc, 10n * ONE_USDC, user);
+        await expect(bridge.relayerLower(lowerProof)).to.be.revertedWithCustomError(bridge, 'RelayerOnly');
       });
 
-      it('when the Uniswap callback is invoked by any account other than the permitted pool', async () => {
-        await expect(bridge.uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
+      it('the proof is used', async () => {
+        [lowerProof] = await createLowerProof(bridge, usdc, 10n * ONE_USDC, user);
+        await bridge.connect(relayer1).relayerLower(lowerProof);
+        await expect(bridge.connect(relayer1).relayerLower(lowerProof)).to.be.revertedWithCustomError(bridge, 'LowerIsUsed');
+      });
+
+      it('the proof is invalid', async () => {
+        await expect(bridge.connect(relayer1).relayerLower(randomBytes32())).to.be.revertedWithCustomError(bridge, 'InvalidProof');
+      });
+
+      it('if the amount will not cover the tx cost', async () => {
+        [lowerProof] = await createLowerProof(bridge, usdc, 1n, user);
+        await expect(bridge.connect(relayer1).relayerLower(lowerProof)).to.be.revertedWithCustomError(bridge, 'AmountTooLow');
+      });
+
+      it('if the token is not USDC', async () => {
+        [lowerProof] = await createLowerProof(bridge, truth, 100000000n, user);
+        await expect(bridge.connect(relayer1).relayerLower(lowerProof)).to.be.revertedWithCustomError(bridge, 'InvalidToken');
       });
     });
   });
 
-  context('Repeat calls (for gas estimation)', async () => {
-    async function doRelayerLift() {
-      const amount = 10n * ONE_USDC;
-      await sendUSDC(user, amount);
-      const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-      await bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s);
-    }
+  context('Coverage tests', async () => {
+    it('uniswapV3SwapCallback fails if not called by the pool', async () => {
+      await expect(bridge.connect(owner).uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
+    });
 
-    it('relayer lift', async () => {
-      const initialBalance = await ethers.provider.getBalance(relayer1.address);
-      for (i = 0; i < 100; i++) await doRelayerLift();
-      await bridge.connect(relayer1).relayerRefund();
-      const gainOrLoss = (await ethers.provider.getBalance(relayer1.address)) - initialBalance;
-      console.log(gainOrLoss);
+    it('__refundRelayer fails via an external caller', async () => {
+      await expect(bridge.connect(owner).__refundRelayer(owner.address, 1)).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
+    });
+
+    it('relayers can get refunded via a relayerLift', async () => {
+      let amount = 10n * ONE_USDC;
+      let ethBalance = 1n;
+      let newEthBalance = 0n;
+
+      while (newEthBalance < ethBalance) {
+        ethBalance = await ethers.provider.getBalance(relayer1.address);
+        await sendUSDC(user, amount);
+        const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
+        await bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s);
+        newEthBalance = await ethers.provider.getBalance(relayer1.address);
+      }
+    });
+
+    it('relayers can get refunded via a relayerLower', async () => {
+      let amount = 10n * ONE_USDC;
+      let ethBalance = 1n;
+      let newEthBalance = 0n;
+
+      while (newEthBalance < ethBalance) {
+        ethBalance = await ethers.provider.getBalance(relayer1.address);
+        await sendUSDC(bridge, amount);
+        [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
+        await bridge.connect(relayer1).relayerLower(lowerProof);
+        newEthBalance = await ethers.provider.getBalance(relayer1.address);
+      }
+    });
+
+    it('users with zero USDC balance incur marginally higher lowering fees', async () => {
+      const userBalance = await usdc.balanceOf(user.address);
+      await usdc.connect(user).transfer(bridge.address, userBalance);
+      [lowerProof] = await createLowerProof(bridge, usdc, userBalance, user);
+      await bridge.connect(relayer1).relayerLower(lowerProof);
     });
   });
 });

@@ -239,6 +239,7 @@ function printErrorCodes() {
     'InvalidProof()',
     'InvalidT1Key()',
     'InvalidT2Key()',
+    'InvalidToken()',
     'LiftFailed()',
     'LiftLimitHit()',
     'LowerIsUsed()',
@@ -251,7 +252,6 @@ function printErrorCodes() {
     'RootHashIsUsed()',
     'T1AddressInUse(address)',
     'T2KeyInUse(bytes32)',
-    'TransferFailed()',
     'TxIdIsUsed()',
     'WindowExpired()'
   ].forEach(error => console.log(`error ${error}; // ${ethers.keccak256(ethers.toUtf8Bytes(error)).slice(0, 10)}`));

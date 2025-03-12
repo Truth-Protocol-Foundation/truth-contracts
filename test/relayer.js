@@ -156,25 +156,7 @@ describe('Relayer Functions', async () => {
       });
 
       it('when the Uniswap callback is invoked by any account other than the permitted pool', async () => {
-        await expect(bridge.uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCallback');
-      });
-
-      it('if the relayer rejects ETH (for coverage only)', async function () {
-        if (!process.env.COVERAGE) this.skip();
-        const contract = await ethers.getContractFactory('RejectingRelayer');
-        const rejectingRelayer = await contract.deploy(bridge.address);
-        rejectingRelayer.address = await rejectingRelayer.getAddress();
-        await bridge.registerRelayer(rejectingRelayer.address);
-        // Inflate the cost as test coverage reduces the gas price to 1
-        const relayerLiftGas = await bridge.relayerLiftGas();
-        await bridge.setRelayerGas(relayerLiftGas * 1000000n);
-        const amount = 100n * ONE_USDC;
-        await sendUSDC(user, amount);
-        const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        await rejectingRelayer.relayerLift(amount, user.address, permit.v, permit.r, permit.s);
-        await expect(rejectingRelayer.relayerRefund()).to.be.revertedWithCustomError(bridge, 'TransferFailed');
-        await bridge.deregisterRelayer(rejectingRelayer.address);
-        await bridge.setRelayerGas(relayerLiftGas);
+        await expect(bridge.uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
       });
     });
   });

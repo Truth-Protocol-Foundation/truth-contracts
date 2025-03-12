@@ -548,7 +548,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
         relayerBalance[relayer] = 1; // reset to trace balance on success
         refunded = true;
       } catch {
-        emit LogRelayerRefundFailed(relayer, balance);
+        emit LogRefundFailed(relayer, balance);
       }
     }
   }

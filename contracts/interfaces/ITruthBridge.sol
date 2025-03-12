@@ -11,7 +11,7 @@ interface ITruthBridge {
   event LogRootPublished(bytes32 indexed rootHash, uint32 indexed t2TxId);
   event LogRelayerRegistered(address indexed relayer);
   event LogRelayerDeregistered(address indexed relayer);
-  event LogRelayerRefundFailed(address indexed relayer, int256 balance);
+  event LogRefundFailed(address indexed relayer, int256 balance);
 
   function addAuthor(bytes calldata t1PubKey, bytes32 t2PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function removeAuthor(bytes32 t2PubKey, bytes calldata t1PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;

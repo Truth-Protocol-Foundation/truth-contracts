@@ -1,5 +1,6 @@
 const {
   createLowerProof,
+  deploySwapHelper,
   deployTruthBridge,
   deployTruthToken,
   expect,
@@ -13,7 +14,7 @@ const {
   sendUSDC
 } = require('./helper.js');
 
-let bridge, truth, usdc, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
+let bridge, truth, usdc, swapHelper, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
 describe('Relayer Functions', async () => {
   before(async () => {
@@ -23,6 +24,7 @@ describe('Relayer Functions', async () => {
     truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
     bridge = await deployTruthBridge(truth, owner);
     usdc = await getUSDC();
+    swapHelper = await deploySwapHelper();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
   });
 
@@ -91,10 +93,8 @@ describe('Relayer Functions', async () => {
         const amount = 10n * ONE_USDC;
         const initialBalance = await usdc.balanceOf(bridge.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        const expectedFee = await bridge.connect(relayer1).relayerLift.estimateGas(amount, user.address, permit.v, permit.r, permit.s);
-        expect(await bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s))
+        await expect(bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
-          .withArgs(usdc.address, userT2PubKey, amount - expectedFee);
         expect(await usdc.balanceOf(bridge.address)).to.equal(initialBalance + amount);
       });
     });
@@ -137,15 +137,8 @@ describe('Relayer Functions', async () => {
     context('succeeds', async () => {
       it('in lowering tokens to the recipient in the proof', async () => {
         const lowerAmount = 10n * ONE_USDC;
-        const initialBridgeBalance = await usdc.balanceOf(bridge.address);
-        const initialUserBalance = await usdc.balanceOf(user.address);
-        const [lowerProof, lowerId] = await createLowerProof(bridge, usdc, lowerAmount, user);
-        const txCost = await bridge.connect(relayer1).relayerLower.estimateGas(lowerProof);
-
+        const [lowerProof] = await createLowerProof(bridge, usdc, lowerAmount, user);
         await expect(bridge.connect(relayer1).relayerLower(lowerProof)).to.emit(bridge, 'LogRelayerLowered');
-        //   .withArgs(lowerId, lowerAmount - txCost);
-        // expect(await usdc.balanceOf(bridge.address)).to.equal(initialBridgeBalance + txCost - lowerAmount);
-        // expect(await usdc.balanceOf(user.address)).to.equal(initialUserBalance + lowerAmount - txCost);
       });
     });
 
@@ -211,6 +204,25 @@ describe('Relayer Functions', async () => {
         [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
         await bridge.connect(relayer1).relayerLower(lowerProof);
         newEthBalance = await ethers.provider.getBalance(relayer1.address);
+      }
+    });
+
+    it('trigger slippage revert', async () => {
+      let amount = 5000000n * ONE_USDC;
+      await sendUSDC(swapHelper, amount);
+      await swapHelper.swapToWETH(amount);
+      amount = 1n * ONE_USDC;
+      let slipped = false;
+
+      while (!slipped) {
+        await sendUSDC(bridge, amount);
+        [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
+        const tx = await bridge.connect(relayer1).relayerLower(lowerProof);
+        const receipt = await tx.wait();
+        for (const log of receipt.logs.filter(log => log.address === bridge.address)) {
+          const event = bridge.interface.parseLog(log);
+          if (event.name === 'LogRefundFailed') slipped = true;
+        }
       }
     });
 

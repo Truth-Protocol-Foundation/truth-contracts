@@ -76,7 +76,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
-  error ExcessSlippage(); // 0x5668e7fc
   error InvalidCaller(); // 0x48f5c3ed
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8

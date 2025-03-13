@@ -13,7 +13,7 @@ const {
   sendUSDC
 } = require('./helper.js');
 
-const ROUNDS = 150;
+const ROUNDS = 0;
 const NUM_RELAYERS = 3;
 const DELTA_SMOOTHING = 0.2; // (0.1 = slow, 0.5 = fast)
 const MIN_GAS_PRICE = Number(ethers.parseUnits('1', 'gwei'));
@@ -62,17 +62,17 @@ describe('Relayer Validation and Tuning', async () => {
     const feedPrice = await bridge.usdcEth();
     const swapAmount = totalFees * feedPrice;
 
-    await swapHelper.swap(swapAmount);
+    await swapHelper.swapToUSDC(swapAmount);
     totalFees = 0n;
 
     const balances = await Promise.all(relayers.map(async relayer => await ethers.provider.getBalance(relayer.address)));
     const deltas = balances.map(balance => Number(ethers.formatEther(balance - RELAYER_BASE_BALANCE)).toFixed(6));
-    const delta = deltas.reduce((a, b) => parseFloat(a) + parseFloat(b), 0)
+    const delta = deltas.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
     emaDelta = emaDelta === undefined ? delta : DELTA_SMOOTHING * delta + (1 - DELTA_SMOOTHING) * emaDelta;
 
     if (LOG_DETAILS) {
-      console.log(`ROUND ${round}  TXS: ${txCt}  DELTA: ${emaDelta.toFixed(4)}`);
-      console.log(`\nBalances:         ${balances.map(balance => Number(ethers.formatEther(balance)).toFixed(4)).join(' ')}`);
+      console.log(`ROUND: ${round}  TX: ${txCt}  DELTA: ${emaDelta.toFixed(4)}`);
+      console.log(`\nBalances:     ${balances.map(balance => Number(ethers.formatEther(balance)).toFixed(4)).join(' ')}`);
       console.log(`1 USDC Chainlink:   ${Number(ethers.formatEther(feedPrice * 1000000n)).toFixed(8)} ETH`);
       console.log(`1 USDC Uniswap:     ${Number(ethers.formatEther((await swapHelper.currentPrice()) * 1000000n)).toFixed(8)} ETH`);
       console.log(

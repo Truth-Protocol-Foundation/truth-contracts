@@ -15,7 +15,7 @@ const {
 
 const ROUNDS = 100;
 const LOG_TX_GAS = false;
-const LOG_ROUNDS = false;
+const LOG_ROUNDS = true;
 
 describe('Relayer Validation and Tuning', async () => {
   let bridge, truth, usdc, weth, swapHelper;
@@ -62,19 +62,20 @@ describe('Relayer Validation and Tuning', async () => {
     const wethAfter = Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(6);
     const usdcAfter = Number(await usdc.balanceOf(swapHelper.address)) / 1e6;
 
-    const balanceDiffs = await Promise.all(relayers.map(async relayer =>
-      Number(ethers.formatEther((await ethers.provider.getBalance(relayer.address)) - initialBalances[relayer.address])).toFixed(6)
-    ));
+    const balanceDiffs = await Promise.all(
+      relayers.map(async relayer =>
+        Number(ethers.formatEther((await ethers.provider.getBalance(relayer.address)) - initialBalances[relayer.address])).toFixed(6)
+      )
+    );
 
     if (LOG_ROUNDS) {
       console.log(`\nROUND ${round} - TX COUNT: ${txCt}`);
-      console.log(`\nCombined diff : ${balanceDiffs.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(6)}`);
-      console.log(`Diff by relayer:`, ...balanceDiffs);
-      console.log(`Fees: ${totalFees}, Price: ${price}, Pool price: ${poolPrice}, Eth to swap: ${Number(ethers.formatEther(swapAmount)).toFixed(6)}`);
-      console.log(`\n1 USDC Chainlink: ${Number(ethers.formatEther(price * 1000000n)).toFixed(7)}`);
+      console.log(`\nCombined diff: ${balanceDiffs.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(6)}`);
+      console.log(`By relayer:`, ...balanceDiffs);
+      console.log(`1 USDC Chainlink: ${Number(ethers.formatEther(price * 1000000n)).toFixed(7)}`);
       console.log(`1 USDC Uniswap  : ${Number(ethers.formatEther(poolPrice * 1000000n)).toFixed(7)}`);
-      console.log(`\nWETH Before: ${wethBefore}, USDC Before: ${usdcBefore}`);
-      console.log(`WETH After : ${wethAfter}, USDC After : ${usdcAfter}\n`);
+      console.log(`Before WETH: ${wethBefore}, USDC: ${usdcBefore}`);
+      console.log(`After  WETH: ${wethAfter}, USDC: ${usdcAfter}\n`);
     }
   }
 
@@ -82,26 +83,30 @@ describe('Relayer Validation and Tuning', async () => {
     await sendUSDC(user, amount);
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
     const tx = await bridge.connect(relayer).relayerLift(amount, user.address, permit.v, permit.r, permit.s, { gasPrice });
-    const gasCost = await processTx(tx, amount);
-    if (LOG_TX_GAS) console.log('LIFT ,', gasCost);
+    const { gasCost, usdcFee } = await processTx(tx, amount);
+    if (LOG_TX_GAS) console.log(`LIFT , ${gasCost}, ${usdcFee}`);
   }
 
   async function doRelayerLower(user, amount, relayer, gasPrice) {
     [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
     const tx = await bridge.connect(relayer).relayerLower(lowerProof, { gasPrice });
-    const gasCost = await processTx(tx, amount);
-    if (LOG_TX_GAS) console.log('LOWER,', gasCost);
+    const { gasCost, usdcFee } = await processTx(tx, amount);
+    if (LOG_TX_GAS) console.log(`LOWER, ${gasCost}, ${usdcFee}`);
   }
 
   async function processTx(tx, amount) {
     txCt++;
+    let fee;
     const receipt = await tx.wait();
     for (const log of receipt.logs.filter(log => log.address === bridge.address)) {
       const event = bridge.interface.parseLog(log);
       if (event.name === 'LogRefundFailed') console.warn(`⚠️ REFUND FAILURE: ${receipt.hash}`);
-      else totalFees += amount - event.args.amount;
+      else {
+        fee = amount - event.args.amount;
+        totalFees += fee;
+      }
     }
-    return parseInt(receipt.gasUsed);
+    return { gasCost: parseInt(receipt.gasUsed), usdcFee: `$${(Number(fee) / 1e6).toFixed(2)}` };
   }
 
   it('tuning test', async () => {

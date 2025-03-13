@@ -41,7 +41,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant REFUND_GAS = 104350;
   uint256 private constant BUFFER = 10100;
   uint256 private constant SLIPPAGE = 9900;
-  uint256 private constant TX_PER_REFUND = 20;
+  uint256 private constant TX_PER_REFUND = 25;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;

@@ -38,10 +38,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant LOWER_BASE_GAS = 84630;
   uint256 private constant LIFT_WRITE_TO_ZERO_GAS_DECREASE = 4795;
   uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17115;
-  uint256 private constant REFUND_GAS = 104350;
-  uint256 private constant BUFFER = 10250; // +2.5%
-  uint256 private constant SLIPPAGE = 9900; // -1%
-  uint256 private constant TX_PER_REFUND = 25;
+  uint256 private constant REFUND_GAS = 103985;
+  uint256 private constant REFUND_FREQUENCY = 25;
+  uint256 private constant SLIPPAGE_TOLERANCE = 99;
+  uint256 private constant SLIPPAGE_BASE = 100;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
@@ -290,7 +290,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     unchecked {
       variableGas -= gasleft();
       if (IERC20(usdc).balanceOf(user) == 0) variableGas -= LIFT_WRITE_TO_ZERO_GAS_DECREASE;
-      uint256 gasUse = ((LIFT_BASE_GAS + variableGas + (REFUND_GAS / TX_PER_REFUND)) * BUFFER) / 10000;
+      uint256 gasUse = ((LIFT_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * SLIPPAGE_BASE) / SLIPPAGE_TOLERANCE;
       uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
       if (usdcTxCost > amount) revert AmountTooLow();
       amount -= usdcTxCost;
@@ -317,7 +317,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     unchecked {
       variableGas -= gasleft();
       if (IERC20(usdc).balanceOf(user) == 0) variableGas += LOWER_WRITE_FROM_ZERO_GAS_INCREASE;
-      uint256 gasUse = ((LOWER_BASE_GAS + variableGas + (REFUND_GAS / TX_PER_REFUND)) * BUFFER) / 10000;
+      uint256 gasUse = ((LOWER_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * SLIPPAGE_BASE) / SLIPPAGE_TOLERANCE;
       uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
       if (usdcTxCost > amount) revert AmountTooLow();
       amount -= usdcTxCost;
@@ -543,15 +543,15 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   function _refundRelayer(address relayer, int256 balance) private returns (bool) {
-    if (uint256(keccak256(abi.encodePacked(block.timestamp, relayer))) % TX_PER_REFUND == 0) {
-      try this.__refundRelayer(relayer, balance - 1) {
-        relayerBalance[relayer] = 1; // reset to trace balance on success
-        return true;
-      } catch {
-        emit LogRefundFailed(relayer, balance);
-      }
+    if (uint256(blockhash(block.number - 1)) % REFUND_FREQUENCY != 0) return false;
+
+    try this.__refundRelayer(relayer, balance - 1) {
+      relayerBalance[relayer] = 1; // reset to trace balance on success
+      return true;
+    } catch {
+      emit LogRefundFailed(relayer, balance);
+      return false;
     }
-    return false;
   }
 
   function __refundRelayer(address relayer, int256 balance) external {
@@ -561,7 +561,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     uint256 ethAmount = IERC20(weth).balanceOf(address(this));
 
     unchecked {
-      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / 10000) revert ExcessSlippage();
+      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE_TOLERANCE) / SLIPPAGE_BASE) revert();
     }
 
     IWETH9(weth).withdraw(ethAmount);

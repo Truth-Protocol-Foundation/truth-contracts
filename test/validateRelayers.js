@@ -14,6 +14,10 @@ const {
 } = require('./helper.js');
 
 const ROUNDS = 100;
+const MAX_GAS_PRICE = Number(ethers.parseUnits('5', 'gwei'));
+const MIN_GAS_PRICE = Number(ethers.parseUnits('0.5', 'gwei'));
+const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
+const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const LOG_TX_GAS = false;
 const LOG_ROUNDS = true;
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.5');
@@ -25,9 +29,11 @@ describe('Relayer Validation and Tuning', async () => {
   let totalFees = 0n;
   let users = [];
   let relayers = [];
+  let scale = 1;
 
   before(async () => {
-    await init(6);
+    const network = await init(6);
+    if (network === 'sepolia') scale = 10; // USDC:ETH costs are higher on Sepolia so scale values
     [owner, u1, u2, u3, u4, u5, u6, u7] = getAccounts();
     users = [u1, u2, u3, u4, u5, u6, u7];
     truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
@@ -56,7 +62,7 @@ describe('Relayer Validation and Tuning', async () => {
     await swapHelper.swap(swapAmount);
     totalFees = 0n;
 
-    const balances = await Promise.all(relayers.map(async relayer => (await ethers.provider.getBalance(relayer.address))));
+    const balances = await Promise.all(relayers.map(async relayer => await ethers.provider.getBalance(relayer.address)));
     const deltas = balances.map(balance => Number(ethers.formatEther(balance - RELAYER_BASE_BALANCE)).toFixed(6));
 
     if (LOG_ROUNDS) {
@@ -64,7 +70,9 @@ describe('Relayer Validation and Tuning', async () => {
       console.log(`\nBalances:  ${balances.map(balance => Number(ethers.formatEther(balance)).toFixed(4)).join(' ')}`);
       console.log(`1 USDC Chainlink:   ${Number(ethers.formatEther(feedPrice * 1000000n)).toFixed(8)} ETH`);
       console.log(`1 USDC Uniswap:     ${Number(ethers.formatEther((await swapHelper.currentPrice()) * 1000000n)).toFixed(8)} ETH`);
-      console.log(`WETH:USDC Swapper:  ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(4)} ${(Number(await usdc.balanceOf(swapHelper.address)) / 1e6).toFixed(2)}\n`);
+      console.log(
+        `WETH:USDC Swapper:  ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(4)} ${(Number(await usdc.balanceOf(swapHelper.address)) / 1e6).toFixed(2)}\n`
+      );
     }
   }
 
@@ -100,12 +108,12 @@ describe('Relayer Validation and Tuning', async () => {
 
   it('tuning test', async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const gasPrice = (Math.floor(Math.random() * (10000000000 - 500000000 + 1)) + 500000000).toString();
+      const gasPrice = Math.floor(Math.random() * (MAX_GAS_PRICE - MIN_GAS_PRICE + 1) + MIN_GAS_PRICE).toString();
       const txRate = Math.floor(Math.random() * (100 - 20 + 1)) + 20;
 
       for (let i = 0; i < txRate; i++) {
         const user = users[Math.floor(Math.random() * users.length)];
-        const amount = BigInt(Math.floor(Math.random() * (100000000 - 4000000 + 1)) + 4000000);
+        const amount = BigInt(Math.floor(Math.random() * (MAX_USDC_AMOUNT - MIN_USDC_AMOUNT * scale + 1) + MIN_USDC_AMOUNT * scale));
         const relayer = relayers[Math.floor(Math.random() * relayers.length)];
         Math.random() < 0.4 ? await doRelayerLift(user, amount, relayer, gasPrice) : await doRelayerLower(user, amount, relayer, gasPrice);
       }

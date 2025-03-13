@@ -225,6 +225,7 @@ async function init(numAuthors, largeTree = false) {
   weth.address = await weth.getAddress();
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
+  return fork;
 }
 
 function printErrorCodes() {

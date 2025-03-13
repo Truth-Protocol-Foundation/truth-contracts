@@ -212,7 +212,7 @@ async function init(numAuthors, largeTree = false) {
     authors.push(toAuthorAccount(account));
   }
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
     await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 100000000000n });
     accounts.push(account);

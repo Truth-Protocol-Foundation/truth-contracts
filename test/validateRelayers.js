@@ -16,30 +16,31 @@ const {
 const ROUNDS = 100;
 const LOG_TX_GAS = false;
 const LOG_ROUNDS = true;
+const RELAYER_BASE_BALANCE = ethers.parseEther('0.5');
 
 describe('Relayer Validation and Tuning', async () => {
   let bridge, truth, usdc, weth, swapHelper;
-  let owner, r1, r2, r3, u1, u2, u3, u4, u5, u6, u7;
+  let owner, u1, u2, u3, u4, u5, u6, u7;
   let txCt = 0;
   let totalFees = 0n;
   let users = [];
   let relayers = [];
-  let initialBalances = {};
 
   before(async () => {
     await init(6);
-    [owner, r1, r2, r3, u1, u2, u3, u4, u5, u6, u7] = getAccounts();
+    [owner, u1, u2, u3, u4, u5, u6, u7] = getAccounts();
     users = [u1, u2, u3, u4, u5, u6, u7];
-    relayers = [r1, r2, r3];
     truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
     bridge = await deployTruthBridge(truth, owner);
     usdc = await getUSDC();
     weth = await getWETH();
     swapHelper = await deploySwapHelper();
 
-    for (const relayer of relayers) {
+    for (let i = 0; i < 3; i++) {
+      const relayer = ethers.Wallet.createRandom().connect(ethers.provider);
+      await owner.sendTransaction({ to: relayer.address, value: RELAYER_BASE_BALANCE });
       await bridge.registerRelayer(relayer.address);
-      initialBalances[relayer.address] = await ethers.provider.getBalance(relayer.address);
+      relayers.push(relayer);
     }
 
     await sendUSDC(bridge, 1000000n * ONE_USDC);
@@ -49,26 +50,21 @@ describe('Relayer Validation and Tuning', async () => {
   });
 
   async function completeRound(round) {
-    const price = await bridge.usdcEth();
-    const poolPrice = await swapHelper.currentPrice();
-    const swapAmount = totalFees * price;
+    const feedPrice = await bridge.usdcEth();
+    const swapAmount = totalFees * feedPrice;
 
     await swapHelper.swap(swapAmount);
     totalFees = 0n;
 
-    const balanceDiffs = await Promise.all(
-      relayers.map(async relayer =>
-        Number(ethers.formatEther((await ethers.provider.getBalance(relayer.address)) - initialBalances[relayer.address])).toFixed(6)
-      )
-    );
+    const balances = await Promise.all(relayers.map(async relayer => (await ethers.provider.getBalance(relayer.address))));
+    const deltas = balances.map(balance => Number(ethers.formatEther(balance - RELAYER_BASE_BALANCE)).toFixed(6));
 
     if (LOG_ROUNDS) {
-      console.log(`\nROUND ${round} - TX COUNT: ${txCt}`);
-      console.log(`\nDelta: ${balanceDiffs.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(6)}  (${balanceDiffs.join(', ')})`);
-      console.log(`1 USDC Chainlink: ${Number(ethers.formatEther(price * 1000000n)).toFixed(7)} ETH`);
-      console.log(`1 USDC Uniswap  : ${Number(ethers.formatEther(poolPrice * 1000000n)).toFixed(7)} ETH`);
-      console.log(`Swapper WETH Balance: ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(6)}`);
-      console.log(`Swapper USDC Balance: ${Number(await usdc.balanceOf(swapHelper.address)) / 1e6}\n`);
+      console.log(`\nROUND ${round} - TXS ${txCt} - DELTA ${deltas.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(4)}`);
+      console.log(`\nBalances:  ${balances.map(balance => Number(ethers.formatEther(balance)).toFixed(4)).join(' ')}`);
+      console.log(`1 USDC Chainlink:   ${Number(ethers.formatEther(feedPrice * 1000000n)).toFixed(8)} ETH`);
+      console.log(`1 USDC Uniswap:     ${Number(ethers.formatEther((await swapHelper.currentPrice()) * 1000000n)).toFixed(8)} ETH`);
+      console.log(`WETH:USDC Swapper:  ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(4)} ${(Number(await usdc.balanceOf(swapHelper.address)) / 1e6).toFixed(2)}\n`);
     }
   }
 

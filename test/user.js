@@ -49,7 +49,7 @@ describe('User Functions', async () => {
       });
 
       afterEach(async () => {
-        expect(await truth.balanceOf(bridge.address), bridgeBalanceBefore + amount);
+        expect(await truth.balanceOf(bridge.address)).to.equal(bridgeBalanceBefore + amount);
       });
 
       it('in lifting tokens to the specified t2 public key', async () => {

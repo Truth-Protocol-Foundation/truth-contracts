@@ -16,12 +16,15 @@ const {
 const ROUNDS = 0;
 const NUM_RELAYERS = 3;
 const DELTA_SMOOTHING = 0.2; // (0.1 = slow, 0.5 = fast)
+
 const MIN_GAS_PRICE = Number(ethers.parseUnits('1', 'gwei'));
 const MAX_GAS_PRICE = MIN_GAS_PRICE * 10;
 const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
-const LOG_TX_GAS = false;
+
 const LOG_DETAILS = true;
+const LOG_TX_GAS = false;
+
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
 
 describe('Relayer Validation and Tuning', async () => {

@@ -34,11 +34,11 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
-  uint256 private constant LIFT_BASE_GAS = 35085;
-  uint256 private constant LOWER_BASE_GAS = 84630;
+  uint256 private constant LIFT_BASE_GAS = 35010;
+  uint256 private constant LOWER_BASE_GAS = 84555;
   uint256 private constant LIFT_WRITE_TO_ZERO_GAS_DECREASE = 4795;
-  uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17115;
-  uint256 private constant REFUND_GAS = 103985;
+  uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17105;
+  uint256 private constant REFUND_GAS = 102180;
   uint256 private constant REFUND_FREQUENCY = 25;
   uint256 private constant SLIPPAGE_TOLERANCE = 99;
   uint256 private constant SLIPPAGE_BASE = 100;
@@ -296,7 +296,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
       balance += int256(usdcTxCost);
     }
 
-    if (!_refundRelayer(msg.sender, balance)) relayerBalance[msg.sender] = balance;
+    if (!_refundRelayer(balance)) relayerBalance[msg.sender] = balance;
     emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount);
   }
 
@@ -324,7 +324,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
       balance += int256(usdcTxCost);
     }
 
-    if (!_refundRelayer(msg.sender, balance)) relayerBalance[msg.sender] = balance;
+    if (!_refundRelayer(balance)) relayerBalance[msg.sender] = balance;
     emit LogRelayerLowered(lowerId, amount);
   }
 
@@ -541,30 +541,30 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     id = v < 29 && uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 ? t1AddressToId[ecrecover(prefixedMsgHash, v, r, s)] : 0;
   }
 
-  function _refundRelayer(address relayer, int256 balance) private returns (bool) {
-    if (uint256(blockhash(block.number - 1)) % REFUND_FREQUENCY != 0) return false;
-
-    try this.__refundRelayer(relayer, balance - 1) {
-      relayerBalance[relayer] = 1; // reset to trace balance on success
-      return true;
-    } catch {
-      emit LogRefundFailed(relayer, balance);
-      return false;
+  function _refundRelayer(int256 balance) private returns (bool success) {
+    if (uint256(blockhash(block.number - 1)) % REFUND_FREQUENCY == 0) {
+      try this.__refundRelayer(msg.sender, balance - 1) {
+        relayerBalance[msg.sender] = 1; // reset to trace balance on success
+        success = true;
+      } catch {
+        emit LogRefundFailed(msg.sender, balance);
+      }
     }
   }
 
   function __refundRelayer(address relayer, int256 balance) external {
     if (msg.sender != address(this)) revert InvalidCaller();
 
-    IUniswapV3Pool(pool).swap(address(this), true, balance, MIN_SQRT_RATIO + 1, ''); // triggers uniswapV3SwapCallback
-    uint256 ethAmount = IERC20(weth).balanceOf(address(this));
+    // triggers uniswapV3SwapCallback:
+    (, int256 amount1) = IUniswapV3Pool(pool).swap(address(this), true, balance, MIN_SQRT_RATIO + 1, '');
 
     unchecked {
+      uint256 ethAmount = uint256(amount1 * -1);
       if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE_TOLERANCE) / SLIPPAGE_BASE) revert();
+      IWETH9(weth).withdraw(ethAmount);
+      (bool success, ) = relayer.call{value: ethAmount}('');
+      assembly { pop(success) } 
     }
-
-    IWETH9(weth).withdraw(ethAmount);
-    payable(relayer).transfer(ethAmount);
   }
 
   function _requiredConfirmations() private view returns (uint256 required) {

@@ -39,8 +39,8 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant LIFT_WRITE_TO_ZERO_GAS_DECREASE = 4795;
   uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17115;
   uint256 private constant REFUND_GAS = 104350;
-  uint256 private constant BUFFER = 10100;
-  uint256 private constant SLIPPAGE = 9900;
+  uint256 private constant BUFFER = 10250; // +2.5%
+  uint256 private constant SLIPPAGE = 9900; // -1%
   uint256 private constant TX_PER_REFUND = 25;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
@@ -76,6 +76,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
   error CannotChangeT2Key(bytes32); // 0x140c6815
+  error ExcessSlippage(); // 0x5668e7fc
   error InvalidCaller(); // 0x48f5c3ed
   error InvalidProof(); // 0x09bde339
   error InvalidT1Key(); // 0x4b0218a8
@@ -541,15 +542,16 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     id = v < 29 && uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 ? t1AddressToId[ecrecover(prefixedMsgHash, v, r, s)] : 0;
   }
 
-  function _refundRelayer(address relayer, int256 balance) private returns (bool refunded) {
+  function _refundRelayer(address relayer, int256 balance) private returns (bool) {
     if (uint256(keccak256(abi.encodePacked(block.timestamp, relayer))) % TX_PER_REFUND == 0) {
       try this.__refundRelayer(relayer, balance - 1) {
         relayerBalance[relayer] = 1; // reset to trace balance on success
-        refunded = true;
+        return true;
       } catch {
         emit LogRefundFailed(relayer, balance);
       }
     }
+    return false;
   }
 
   function __refundRelayer(address relayer, int256 balance) external {
@@ -559,7 +561,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     uint256 ethAmount = IERC20(weth).balanceOf(address(this));
 
     unchecked {
-      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / 10000) revert();
+      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / 10000) revert ExcessSlippage();
     }
 
     IWETH9(weth).withdraw(ethAmount);

@@ -234,6 +234,7 @@ function printErrorCodes() {
     'AmountTooLow()',
     'BadConfirmations()',
     'CannotChangeT2Key(bytes32)',
+    'ExcessSlippage()',
     'InvalidCaller()',
     'InvalidProof()',
     'InvalidT1Key()',

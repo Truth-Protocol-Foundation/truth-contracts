@@ -53,14 +53,8 @@ describe('Relayer Validation and Tuning', async () => {
     const poolPrice = await swapHelper.currentPrice();
     const swapAmount = totalFees * price;
 
-    const wethBefore = Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(6);
-    const usdcBefore = Number(await usdc.balanceOf(swapHelper.address)) / 1e6;
-
     await swapHelper.swap(swapAmount);
     totalFees = 0n;
-
-    const wethAfter = Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(6);
-    const usdcAfter = Number(await usdc.balanceOf(swapHelper.address)) / 1e6;
 
     const balanceDiffs = await Promise.all(
       relayers.map(async relayer =>
@@ -70,12 +64,11 @@ describe('Relayer Validation and Tuning', async () => {
 
     if (LOG_ROUNDS) {
       console.log(`\nROUND ${round} - TX COUNT: ${txCt}`);
-      console.log(`\nCombined diff: ${balanceDiffs.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(6)}`);
-      console.log(`By relayer:`, ...balanceDiffs);
-      console.log(`1 USDC Chainlink: ${Number(ethers.formatEther(price * 1000000n)).toFixed(7)}`);
-      console.log(`1 USDC Uniswap  : ${Number(ethers.formatEther(poolPrice * 1000000n)).toFixed(7)}`);
-      console.log(`Before WETH: ${wethBefore}, USDC: ${usdcBefore}`);
-      console.log(`After  WETH: ${wethAfter}, USDC: ${usdcAfter}\n`);
+      console.log(`\nDelta: ${balanceDiffs.reduce((a, b) => parseFloat(a) + parseFloat(b), 0).toFixed(6)}  (${balanceDiffs.join(', ')})`);
+      console.log(`1 USDC Chainlink: ${Number(ethers.formatEther(price * 1000000n)).toFixed(7)} ETH`);
+      console.log(`1 USDC Uniswap  : ${Number(ethers.formatEther(poolPrice * 1000000n)).toFixed(7)} ETH`);
+      console.log(`Swapper WETH Balance: ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(6)}`);
+      console.log(`Swapper USDC Balance: ${Number(await usdc.balanceOf(swapHelper.address)) / 1e6}\n`);
     }
   }
 

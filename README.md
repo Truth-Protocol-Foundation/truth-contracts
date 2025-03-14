@@ -44,11 +44,13 @@
 #### Format the code
 `npm run format`
 
-#### Run mainnet tests
-`npm run tests`
+#### Run tests
+- against mainnet: `npm run tests`
+- against sepolia: `npm run tests-s`
 
-#### Run sepolia tests
-`npm run tests-s`
+#### Run relayer tuning
+- against mainnet: `npm run tuning`
+- against sepolia: `npm run tuning-s`
 
 #### Run coverage
 `npm run coverage`

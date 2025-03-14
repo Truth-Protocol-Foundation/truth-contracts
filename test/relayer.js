@@ -93,8 +93,7 @@ describe('Relayer Functions', async () => {
         const amount = 10n * ONE_USDC;
         const initialBalance = await usdc.balanceOf(bridge.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        await expect(bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s))
-          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+        await expect(bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s)).to.emit(bridge, 'LogLiftedToPredictionMarket');
         expect(await usdc.balanceOf(bridge.address)).to.equal(initialBalance + amount);
       });
     });

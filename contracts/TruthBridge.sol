@@ -40,8 +40,9 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17105;
   uint256 private constant REFUND_GAS = 102180;
   uint256 private constant REFUND_FREQUENCY = 25;
-  uint256 private constant SLIPPAGE_TOLERANCE = 985; // 1.5%
-  uint256 private constant SLIPPAGE_BASE = 1000;
+  uint256 private constant BUFFER = 10075; // 0.75%
+  uint256 private constant SLIPPAGE = 9875; // 1.25%
+  uint256 private constant BASIS = 10000;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
@@ -289,7 +290,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     unchecked {
       variableGas -= gasleft();
       if (IERC20(usdc).balanceOf(user) == 0) variableGas -= LIFT_WRITE_TO_ZERO_GAS_DECREASE;
-      uint256 gasUse = ((LIFT_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * SLIPPAGE_BASE) / SLIPPAGE_TOLERANCE;
+      uint256 gasUse = ((LIFT_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * BUFFER) / BASIS;
       uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
       if (usdcTxCost > amount) revert AmountTooLow();
       amount -= usdcTxCost;
@@ -316,7 +317,7 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
     unchecked {
       variableGas -= gasleft();
       if (IERC20(usdc).balanceOf(user) == 0) variableGas += LOWER_WRITE_FROM_ZERO_GAS_INCREASE;
-      uint256 gasUse = ((LOWER_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * SLIPPAGE_BASE) / SLIPPAGE_TOLERANCE;
+      uint256 gasUse = ((LOWER_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * BUFFER) / BASIS;
       uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
       if (usdcTxCost > amount) revert AmountTooLow();
       amount -= usdcTxCost;
@@ -560,10 +561,12 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
 
     unchecked {
       uint256 ethAmount = uint256(amount1 * -1);
-      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE_TOLERANCE) / SLIPPAGE_BASE) revert();
+      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / BASIS) revert();
       IWETH9(weth).withdraw(ethAmount);
-      (bool success, ) = relayer.call{value: ethAmount}('');
-      assembly { pop(success) } 
+      (bool success, ) = relayer.call{ value: ethAmount }('');
+      assembly {
+        pop(success)
+      }
     }
   }
 

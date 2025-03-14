@@ -1,21 +1,12 @@
 const { impersonateAccount, stopImpersonatingAccount, time } = require('@nomicfoundation/hardhat-network-helpers');
 const { MerkleTree } = require('merkletreejs');
 const { expect } = require('chai');
+const addresses = require('./addresses.js');
 const coder = ethers.AbiCoder.defaultAbiCoder();
 
-const USDC = {
-  mainnet: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', holder: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341' },
-  sepolia: { address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', holder: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f' }
-};
-
-const WETH = {
-  mainnet: { address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
-  sepolia: { address: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14' }
-};
-
-const pool = {
-  mainnet: { address: '0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640' },
-  sepolia: { address: '0x3289680dD4d6C10bb19b899729cda5eEF58AEfF1' }
+const USDC_HOLDER = {
+  mainnet: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341',
+  sepolia: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f'
 };
 
 const EMPTY_BYTES = '0x';
@@ -31,7 +22,7 @@ let additionalTx = [];
 let accounts = [];
 let authors = [];
 let lowerId = 0;
-let fork;
+let network;
 let usdc;
 let weth;
 
@@ -90,12 +81,12 @@ async function createTreeAndPublishRoot(bridge, owner, truth, amount) {
 
 async function deploySwapHelper() {
   const contract = await ethers.getContractFactory('SwapHelper');
-  const swapHelper = await contract.deploy(pool[fork].address, USDC[fork].address, WETH[fork].address);
+  const swapHelper = await contract.deploy(addresses[network].pool, addresses[network].usdc, addresses[network].weth);
   swapHelper.address = await swapHelper.getAddress();
   return swapHelper;
 }
 
-async function deployTruthBridge(truth, owner) {
+async function deployBridge(truth, owner) {
   const initArgs = [
     truth.address,
     authors.map(author => author.t1Address),
@@ -110,7 +101,8 @@ async function deployTruthBridge(truth, owner) {
   return bridge;
 }
 
-async function deployTruthToken(supply, owner) {
+async function deployToken(owner, supply) {
+  supply = supply || ONE_HUNDRED_BILLION;
   const contract = await ethers.getContractFactory('TruthToken');
   const name = 'Truth';
   const symbol = 'TRUU';
@@ -201,31 +193,35 @@ async function increaseBlockTimestamp(seconds) {
 async function init(numAuthors, largeTree = false) {
   const [owner] = await ethers.getSigners();
   await hre.network.provider.send('hardhat_setBalance', [owner.address, '0xD3C21BCECCEDA1000000']); // Set at 1000 ETH
-  fork = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
-  console.log(`   ${fork} fork`);
+  network = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
   accounts = [owner];
   authors = [];
 
+  const latestBlock = await ethers.provider.getBlock('latest');
+  const maxFeePerGas = latestBlock.baseFeePerGas * 2n;
+  const maxPriorityFeePerGas = maxFeePerGas - 1n;
+
   for (let i = 0; i < numAuthors; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas: 100000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('1'), maxFeePerGas, maxPriorityFeePerGas });
     authors.push(toAuthorAccount(account));
   }
 
   for (let i = 0; i < 10; i++) {
     const account = ethers.Wallet.createRandom().connect(ethers.provider);
-    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas: 100000000000n });
+    await owner.sendTransaction({ to: account.address, value: ethers.parseEther('10'), maxFeePerGas, maxPriorityFeePerGas });
     accounts.push(account);
   }
 
-  await owner.sendTransaction({ to: USDC[fork].holder, value: ethers.parseEther('10') });
-  usdc = new ethers.Contract(USDC[fork].address, require('../abi/USDC.js'), ethers.provider);
+  usdc = new ethers.Contract(addresses[network].usdc, require('../abi/USDC.js'), ethers.provider);
   usdc.address = await usdc.getAddress();
-  weth = await ethers.getContractAt('IWETH9', WETH[fork].address);
+  usdc.holder = USDC_HOLDER[network];
+  await owner.sendTransaction({ to: usdc.holder, value: ethers.parseEther('10'), maxFeePerGas, maxPriorityFeePerGas });
+  weth = await ethers.getContractAt('IWETH9', addresses[network].weth);
   weth.address = await weth.getAddress();
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
-  return fork;
+  return network;
 }
 
 function printErrorCodes() {
@@ -268,9 +264,9 @@ function randomT2TxId() {
 }
 
 async function sendUSDC(recipient, amount) {
-  await impersonateAccount(USDC[fork].holder);
-  await usdc.connect(await ethers.getSigner(USDC[fork].holder)).transfer(recipient.address, amount);
-  await stopImpersonatingAccount(USDC[fork].holder);
+  await impersonateAccount(usdc.holder);
+  await usdc.connect(await ethers.getSigner(usdc.holder)).transfer(recipient.address, amount);
+  await stopImpersonatingAccount(usdc.holder);
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);
@@ -317,9 +313,9 @@ function toLittleEndianBytesStr(amount) {
 module.exports = {
   createLowerProof,
   createTreeAndPublishRoot,
+  deployBridge,
   deploySwapHelper,
-  deployTruthBridge,
-  deployTruthToken,
+  deployToken,
   expect,
   EMPTY_BYTES,
   EMPTY_BYTES_32,
@@ -332,12 +328,11 @@ module.exports = {
   getPermit,
   getSingleConfirmation,
   getUSDC: () => usdc,
-  getWETH: () => weth,
   getValidExpiry,
+  getWETH: () => weth,
   increaseBlockTimestamp,
   init,
   MIN_AUTHORS,
-  ONE_HUNDRED_BILLION,
   ONE_USDC,
   randomBytes32,
   randomHex,

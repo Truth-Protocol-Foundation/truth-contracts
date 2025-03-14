@@ -10,7 +10,7 @@ contract SwapHelper {
 
   address private usdc;
   address private weth;
-  address private pool;
+  address public pool;
   bool private transferUSDC;
 
   constructor(address _pool, address _usdc, address _weth) {

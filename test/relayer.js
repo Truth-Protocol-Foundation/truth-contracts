@@ -1,18 +1,16 @@
 const {
   createLowerProof,
   deploySwapHelper,
-  deployTruthBridge,
-  deployTruthToken,
+  deployBridge,
+  deployToken,
   expect,
   getAccounts,
   getPermit,
   getUSDC,
   init,
-  ONE_HUNDRED_BILLION,
   ONE_USDC,
-  randomBytes32,
   sendUSDC
-} = require('./helper.js');
+} = require('../utils/helper.js');
 
 let bridge, truth, usdc, swapHelper, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
@@ -21,8 +19,8 @@ describe('Relayer Functions', async () => {
     const numAuthors = 6;
     await init(numAuthors);
     [owner, otherAccount, relayer1, relayer2, user] = getAccounts();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
-    bridge = await deployTruthBridge(truth, owner);
+    truth = await deployToken(owner);
+    bridge = await deployBridge(truth, owner);
     usdc = await getUSDC();
     swapHelper = await deploySwapHelper();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
@@ -94,7 +92,8 @@ describe('Relayer Functions', async () => {
         const initialBalance = await usdc.balanceOf(bridge.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
         await expect(bridge.connect(relayer1).relayerLift(amount, user.address, permit.v, permit.r, permit.s)).to.emit(bridge, 'LogLiftedToPredictionMarket');
-        expect(await usdc.balanceOf(bridge.address)).to.equal(initialBalance + amount);
+        const newBalance = await usdc.balanceOf(bridge.address);
+        expect(newBalance).to.equal(initialBalance + amount);
       });
     });
 
@@ -154,7 +153,7 @@ describe('Relayer Functions', async () => {
       });
 
       it('the proof is invalid', async () => {
-        await expect(bridge.connect(relayer1).relayerLower(randomBytes32())).to.be.revertedWithCustomError(bridge, 'InvalidProof');
+        await expect(bridge.connect(relayer1).relayerLower('0x12345678')).to.be.revertedWithCustomError(bridge, 'InvalidProof');
       });
 
       it('if the amount will not cover the tx cost', async () => {
@@ -169,7 +168,7 @@ describe('Relayer Functions', async () => {
     });
   });
 
-  context('Coverage tests', async () => {
+  context('Refund mechanism', async () => {
     it('uniswapV3SwapCallback fails if not called by the pool', async () => {
       await expect(bridge.connect(owner).uniswapV3SwapCallback(1, 1, '0x')).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
     });
@@ -207,10 +206,11 @@ describe('Relayer Functions', async () => {
     });
 
     it('trigger slippage revert', async () => {
-      let amount = 5000000n * ONE_USDC;
-      await sendUSDC(swapHelper, amount);
-      await swapHelper.swapToWETH(amount);
-      amount = 1n * ONE_USDC;
+      const poolBalance = await usdc.balanceOf(await swapHelper.pool());
+      const priceMovingAmount = poolBalance / 2n;
+      await sendUSDC(swapHelper, priceMovingAmount);
+      await swapHelper.swapToWETH(priceMovingAmount);
+      const amount = 1n * ONE_USDC;
       let slipped = false;
 
       while (!slipped) {

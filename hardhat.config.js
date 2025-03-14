@@ -4,7 +4,7 @@ require('@openzeppelin/hardhat-upgrades');
 require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('dotenv').config();
-const { updateContract, restoreContract } = require('./scripts/updateContractToSepolia');
+const { setBridgeToSepolia, restoreBridgeToMainnet } = require('./utils/updateBridge.js');
 
 const FORK = process.env.FORK || 'mainnet';
 const FORKING_URL = FORK === 'sepolia' ? process.env.SEPOLIA_ALCHEMY_OR_INFURA_URL : process.env.MAINNET_ALCHEMY_OR_INFURA_URL;
@@ -17,8 +17,7 @@ task('implementation')
   .addPositionalParam('contractType')
   .setAction(async (args, hre) => {
     const { ethers, network } = hre;
-    let originalContract;
-    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    if (sepoliaBridge(network, args)) setBridgeToSepolia();
     await hre.run('compile');
 
     try {
@@ -34,7 +33,7 @@ task('implementation')
       await delay(20);
       await verify(hre, impAddress);
     } finally {
-      if (originalContract) restoreContract(originalContract);
+      if (sepoliaBridge(network, args)) restoreBridgeToMainnet();
     }
   });
 
@@ -45,8 +44,7 @@ task('deploy')
   .addOptionalParam('owner')
   .setAction(async (args, hre) => {
     const { ethers, upgrades, network } = hre;
-    let originalContract;
-    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    if (sepoliaBridge(network, args)) setBridgeToSepolia();
     await hre.run('compile');
 
     try {
@@ -66,33 +64,7 @@ task('deploy')
       await verify(hre, await upgrades.erc1967.getImplementationAddress(proxyAddress));
       await verify(hre, proxyAddress);
     } finally {
-      if (originalContract) restoreContract(originalContract);
-    }
-  });
-
-task('upgrade')
-  .addPositionalParam('contractType')
-  .addPositionalParam('proxyAddress')
-  .setAction(async (args, hre) => {
-    const { ethers, upgrades, network } = hre;
-    let originalContract;
-    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
-    await hre.run('compile');
-    try {
-      const [signer] = await ethers.getSigners();
-      const signerBalance = await ethers.provider.getBalance(signer.address);
-      const contractName = getContractName(args.contractType);
-
-      console.log(`\nUpgrading ${contractName} on ${network.name} using account ${signer.address}...`);
-      const contractFactory = await ethers.getContractFactory(contractName);
-      await upgrades.upgradeProxy(args.proxyAddress, contractFactory);
-      const cost = ethers.formatEther(signerBalance - (await ethers.provider.getBalance(signer.address)));
-      console.log(`\nUpgraded ${contractName} at ${args.proxyAddress} for ${cost} ETH\n`);
-
-      await delay(20);
-      await verify(hre, await upgrades.erc1967.getImplementationAddress(args.proxyAddress));
-    } finally {
-      if (originalContract) restoreContract(originalContract);
+      if (sepoliaBridge(network, args)) restoreBridgeToMainnet();
     }
   });
 
@@ -101,8 +73,7 @@ task('manifest')
   .addPositionalParam('proxyAddress')
   .setAction(async (args, hre) => {
     const { ethers, network } = hre;
-    let originalContract;
-    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    if (sepoliaBridge(network, args)) setBridgeToSepolia();
     await hre.run('compile');
 
     try {
@@ -111,7 +82,7 @@ task('manifest')
       console.log(`Updating ${contractName} manifest for ${args.proxyAddress} on ${network.name}`);
       await upgrades.forceImport(args.proxyAddress, contractFactory);
     } finally {
-      if (originalContract) restoreContract(originalContract);
+      if (sepoliaBridge(network, args)) restoreBridgeToMainnet();
     }
   });
 
@@ -120,8 +91,7 @@ task('validate')
   .addPositionalParam('proxyAddress')
   .setAction(async (args, hre) => {
     const { ethers, network } = hre;
-    let originalContract;
-    if (network.name === 'sepolia' && args.contractType === 'bridge') originalContract = updateContract();
+    if (sepoliaBridge(network, args)) setBridgeToSepolia();
     await hre.run('compile');
 
     try {
@@ -138,7 +108,7 @@ task('validate')
     } catch (error) {
       console.error('\nResult:', error);
     } finally {
-      if (originalContract) restoreContract(originalContract);
+      if (sepoliaBridge(network, args)) restoreBridgeToMainnet();
     }
   });
 
@@ -174,6 +144,10 @@ function getInitArgs(args, network, signer) {
 
 function getContractName(contract) {
   return 'Truth' + contract[0].toUpperCase() + contract.slice(1).toLowerCase();
+}
+
+function sepoliaBridge(network, args) {
+  return network.name === 'sepolia' && args.contractType === 'bridge';
 }
 
 function delay(seconds) {

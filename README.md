@@ -14,6 +14,7 @@
 - Upgradeable [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token with a total supply of 100,000,000,000 tokens of 10 decimals.
 - Extended to include [ERC-2612](https://eips.ethereum.org/EIPS/eip-2612) permit-based approvals.
 
+
 ## 2. Truth Bridge
 - Upgradeable bridging contract connecting Ethereum with, and secured by, the Truth Network (TN).
 - Handles:
@@ -24,6 +25,7 @@
     - **Lowering** - Unlocking and transferring tokens to the Ethereum recipient specified in the proof of the tokens' destruction on the TN.
   - "Gasless" lifting and lowering via relayers ([USDC](https://www.circle.com/usdc) only).
   - Management of relayers.
+
 
 ## Lift Methods
 
@@ -81,6 +83,7 @@ MAINNET_DEPLOYER_PRIVATE_KEY (or MAINNET_DEPLOYER_LEDGER_ADDRESS)
 `npx hardhat deploy bridge --token <token_address> [--owner owner_address] --network <network> --env <environment name>`
 
 **Note**: the `--owner` must be specified for mainnet (defaults to deployer on Sepolia)
+
 
 ## Upgrading
 

@@ -37,7 +37,7 @@ async function main() {
 
   console.log('Initializing relayer tuning...\n');
 
-  const network = await init(6);
+  const network = await init(5);
   if (network === 'sepolia') scale = 10; // USDC:ETH costs are higher on Sepolia so scale values
 
   [owner, ...users] = getAccounts();

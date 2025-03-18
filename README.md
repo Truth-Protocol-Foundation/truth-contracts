@@ -1,5 +1,4 @@
 # Contracts
-
 | Contract | Network | Environment | Address |
 |----------|---------|-------------|---------|
 | Truth Token | Mainnet | Production | [0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2](https://etherscan.io/address/0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2) |
@@ -28,19 +27,18 @@
 
 
 ## Lift Methods
-
-| Method                        | Approval Tx Required? | Callable By | T2 Account Specified As         |
-|-------------------------------|-----------------------|-------------|---------------------------------|
-| **lift**                      | Yes                   | Lifter      | `bytes`                         |
-| **permitLift**                | No                    | Lifter      | `bytes32`                       |
-| **predictionMarketLift**      | Yes                   | Lifter      | Derived from lifter ETH address |
-| **predictionMarketPermitLift**| No                    | Lifter      | Derived from lifter ETH address |
-| **predictionMarketProxyLift** | No                    | Anyone      | Derived from lifter ETH address |
+| Method                        | Approval Tx Required? | Callable By | T2 Account Specified As     |
+|-------------------------------|-----------------------|-------------|-----------------------------|
+| **lift**                      | Yes                   | Lifter      | `bytes`                     |
+| **permitLift**                | No                    | Lifter      | `bytes32`                   |
+| **predictionMarketLift**      | Yes                   | Lifter      | Derived from lifter address |
+| **predictionMarketPermitLift**| No                    | Lifter      | Derived from lifter address |
+| **relayerLift**               | No                    | Relayer     | Derived from lifter address |
 
 
 # Development
 
-## Setup
+### Setup
 - do `npm i`
 
 #### Format the code

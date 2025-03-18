@@ -16,7 +16,7 @@ let bridge, truth, usdc, swapHelper, owner, otherAccount, relayer1, relayer2, us
 
 describe('Relayer Functions', async () => {
   before(async () => {
-    const numAuthors = 6;
+    const numAuthors = 5;
     await init(numAuthors);
     [owner, otherAccount, relayer1, relayer2, user] = getAccounts();
     truth = await deployToken(owner);

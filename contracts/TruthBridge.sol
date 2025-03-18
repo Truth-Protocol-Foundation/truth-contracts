@@ -239,22 +239,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   }
 
   /**
-   * @dev Prediction market lift variant accepting an ERC-2612 permit and lifter address to enable proxyied lifting.
-   */
-  function predictionMarketProxyLift(
-    address token,
-    address lifter,
-    uint256 amount,
-    uint256 deadline,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) external whenNotPaused nonReentrant {
-    IERC20Permit(token).permit(lifter, address(this), amount, deadline, v, r, s);
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(lifter), _lift(lifter, token, amount));
-  }
-
-  /**
    * @dev Registers a relayer for proxying user USDC lifts and lowers
    */
   function registerRelayer(address relayer) external onlyOwner {

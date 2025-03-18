@@ -5,7 +5,6 @@
     "format": "npm run pretty:fix && npm run pretty:sol",
     "pretty:fix": "prettier --config ./.prettierrc.json --write \"**/*.{js,json}\"",
     "pretty:sol": "npx prettier --write --plugin=prettier-plugin-solidity contracts/**/*.sol",
-    "relayer": "npx hardhat run scripts/relayerTest.js",
     "tests": "node utils/switch.js mainnet test",
     "tests-s": "node utils/switch.js sepolia test",
     "tuning": "node utils/switch.js mainnet tune",

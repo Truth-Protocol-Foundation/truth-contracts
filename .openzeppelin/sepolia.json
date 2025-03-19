@@ -618,9 +618,9 @@
         "0xEE158E19450d4De36222E8C0F894a1193408885A"
       ]
     },
-    "865fadf77ba876f3f2439f72a2868fd3c3504b5bdc79c6a072ba78c1c72dbcba": {
-      "address": "0x5D87B85e0E3294e0696036Cb90a36D7818D230B8",
-      "txHash": "0x55e0595b6f6b96fe8e4a212d5a969c4eb00dc563b912abe0aee455a375323fcc",
+    "53ca51d99f7f9715d2380bfde6497fd47a8b4df8490c9f6be5f5fa48fdcc064a": {
+      "address": "0x0E678270b1dD6925f34aBe41A4Fb6Ed870d875EE",
+      "txHash": "0xda40f00b85b780c329e34c8aae46d75cb96ea79fcf4646d9e15fa56ef73d7335",
       "layout": {
         "solcVersion": "0.8.28",
         "storage": [
@@ -920,7 +920,7 @@
         }
       },
       "allAddresses": [
-        "0x5D87B85e0E3294e0696036Cb90a36D7818D230B8"
+        "0x0E678270b1dD6925f34aBe41A4Fb6Ed870d875EE"
       ]
     }
   }

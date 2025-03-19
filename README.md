@@ -112,4 +112,4 @@ Owner must call `upgradeToAndCall` on the Truth Token passing the new implementa
 Owner must call `upgradeToAndCall` on the Truth Bridge passing the new implementation address.
 
 #### 4. Update the openzeppelin manifest
-`npx hardhat manifest bridge <token_address> --network <network>`
+`npx hardhat manifest bridge <bridge_address> --network <network>`

@@ -198,7 +198,8 @@ async function init(numAuthors, largeTree = false) {
   authors = [];
 
   const latestBlock = await ethers.provider.getBlock('latest');
-  const maxFeePerGas = latestBlock.baseFeePerGas * 2n;
+  const baseFeePerGas = latestBlock.baseFeePerGas ?? ethers.parseUnits('1', 'gwei');
+  const maxFeePerGas = baseFeePerGas > 0n ? baseFeePerGas * 2n : ethers.parseUnits('2', 'gwei');
   const maxPriorityFeePerGas = maxFeePerGas - 1n;
 
   for (let i = 0; i < numAuthors; i++) {

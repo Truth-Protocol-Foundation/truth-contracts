@@ -6,7 +6,7 @@ const coder = ethers.AbiCoder.defaultAbiCoder();
 
 const USDC_HOLDER = {
   mainnet: '0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341',
-  sepolia: '0x1C27eAD3265239581C936d880c53b8a7E0590a9f'
+  sepolia: '0xab5014336704bD59b1148c316CAdbECe27C01f14'
 };
 
 const EMPTY_BYTES = '0x';
@@ -214,7 +214,8 @@ async function init(numAuthors, largeTree = false) {
     accounts.push(account);
   }
 
-  usdc = new ethers.Contract(addresses[network].usdc, require('../abi/USDC.js'), ethers.provider);
+  const usdcAbi = network === 'mainnet' ? 'USDC' : 'RelayerToken';
+  usdc = new ethers.Contract(addresses[network].usdc, require(`../abi/${usdcAbi}.js`), ethers.provider);
   usdc.address = await usdc.getAddress();
   usdc.holder = USDC_HOLDER[network];
   await owner.sendTransaction({ to: usdc.holder, value: ethers.parseEther('10'), maxFeePerGas, maxPriorityFeePerGas });
@@ -223,6 +224,13 @@ async function init(numAuthors, largeTree = false) {
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
   return network;
+}
+
+async function setupRelayerToken(owner, bridge, usdc) {
+  await impersonateAccount(usdc.holder);
+  await usdc.connect(await ethers.getSigner(usdc.holder)).setBridge(bridge.address, true);
+  await stopImpersonatingAccount(usdc.holder);
+  await owner.sendTransaction({ to: bridge.address, value: ethers.parseEther('10') });
 }
 
 function printErrorCodes() {
@@ -339,6 +347,7 @@ module.exports = {
   randomHex,
   randomT2TxId,
   sendUSDC,
+  setupRelayerToken,
   strip_0x,
   toAuthorAccount,
   ZERO_ADDRESS

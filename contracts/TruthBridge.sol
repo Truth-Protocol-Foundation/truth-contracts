@@ -14,6 +14,7 @@ pragma solidity 0.8.28;
 
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
+import './interfaces/IUniswapV3Callback.sol';
 import './interfaces/IUniswapV3Pool.sol';
 import './interfaces/IWETH9.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
@@ -25,7 +26,15 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
-contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+contract TruthBridge is
+  ITruthBridge,
+  IUniswapV3Callback,
+  Initializable,
+  Ownable2StepUpgradeable,
+  PausableUpgradeable,
+  ReentrancyGuardUpgradeable,
+  UUPSUpgradeable
+{
   using SafeERC20 for IERC20;
 
   string private constant ESM_PREFIX = '\x19Ethereum Signed Message:\n32';
@@ -48,10 +57,10 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
 
-  address private constant feed = 0x986b5E1e1755e3C2440e960477f25201B0a8bbD4;
-  address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
-  address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-  address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  address private constant feed = 0x9694E87fe20B9529885Af121282eF211e841ec48;
+  address private constant pool = 0x9694E87fe20B9529885Af121282eF211e841ec48;
+  address private constant usdc = 0x9694E87fe20B9529885Af121282eF211e841ec48;
+  address private constant weth = 0x9694E87fe20B9529885Af121282eF211e841ec48;
 
   // Authors
   mapping(uint256 => bool) public isAuthor;

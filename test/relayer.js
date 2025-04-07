@@ -9,19 +9,21 @@ const {
   getUSDC,
   init,
   ONE_USDC,
-  sendUSDC
+  sendUSDC,
+  setupRelayerToken
 } = require('../utils/helper.js');
 
-let bridge, truth, usdc, swapHelper, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
+let network, bridge, truth, usdc, swapHelper, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
 describe('Relayer Functions', async () => {
   before(async () => {
     const numAuthors = 5;
-    await init(numAuthors);
+    network = await init(numAuthors);
     [owner, otherAccount, relayer1, relayer2, user] = getAccounts();
     truth = await deployToken(owner);
     bridge = await deployBridge(truth, owner);
     usdc = await getUSDC();
+    if (network === 'sepolia') await setupRelayerToken(owner, bridge, usdc);
     swapHelper = await deploySwapHelper();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
   });
@@ -206,6 +208,7 @@ describe('Relayer Functions', async () => {
     });
 
     it('trigger slippage revert', async () => {
+      if (network === 'sepolia') return true;
       const poolBalance = await usdc.balanceOf(await swapHelper.pool());
       const priceMovingAmount = poolBalance / 2n;
       await sendUSDC(swapHelper, priceMovingAmount);

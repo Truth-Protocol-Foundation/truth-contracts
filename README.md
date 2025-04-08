@@ -1,12 +1,13 @@
 # Contracts
-| Contract | Network | Environment | Address |
-|----------|---------|-------------|---------|
-| Truth Token | Mainnet | Production | [0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2](https://etherscan.io/address/0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2) |
-| Truth Token | Sepolia | Public Testnet | [0x6cAEfA7446E967018330cCeC5BA7A43956a45137](https://sepolia.etherscan.io/address/0x6cAEfA7446E967018330cCeC5BA7A43956a45137) |
-| Truth Token | Sepolia | Development | [0x25560bD4FD693922450D99188Fab23472e59015F](https://sepolia.etherscan.io/address/0x25560bD4FD693922450D99188Fab23472e59015F) |
-| Truth Bridge | Mainnet | Production | [0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92](https://etherscan.io/address/0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92) |
-| Truth Bridge | Sepolia | Public Testnet | [0xad36dB955A0C881A78842eE1C8e848a7238637e8](https://sepolia.etherscan.io/address/0xad36dB955A0C881A78842eE1C8e848a7238637e8) |
-| Truth Bridge | Sepolia | Development | [0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E](https://sepolia.etherscan.io/address/0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E) |
+|   Contract   | Network |  Environment  |                                                       Address                                                                 |
+|--------------|---------|---------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Truth Token  | Mainnet | Production    | [0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2](https://etherscan.io/address/0xDAe0faFD65385E7775Cf75b1398735155EF6aCD2)         |
+| Truth Token  | Sepolia | Testnet       | [0x6cAEfA7446E967018330cCeC5BA7A43956a45137](https://sepolia.etherscan.io/address/0x6cAEfA7446E967018330cCeC5BA7A43956a45137) |
+| Truth Token  | Sepolia | Dev           | [0x25560bD4FD693922450D99188Fab23472e59015F](https://sepolia.etherscan.io/address/0x25560bD4FD693922450D99188Fab23472e59015F) |
+| Truth Bridge | Mainnet | Production    | [0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92](https://etherscan.io/address/0x50c02710b06d6AdDb864D6b038010eF6fA1BCd92)         |
+| Truth Bridge | Sepolia | Testnet       | [0xad36dB955A0C881A78842eE1C8e848a7238637e8](https://sepolia.etherscan.io/address/0xad36dB955A0C881A78842eE1C8e848a7238637e8) |
+| Truth Bridge | Sepolia | Dev           | [0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E](https://sepolia.etherscan.io/address/0x5816CEDff9DE7c5FB13dcFb1cE9038014b929b7E) |
+| Test USDC    | Sepolia | Dev / Testnet | [0x9694E87fe20B9529885Af121282eF211e841ec48](https://sepolia.etherscan.io/address/0x9694E87fe20B9529885Af121282eF211e841ec48) |
 
 
 ## 1. Truth Token (`TRUU`)

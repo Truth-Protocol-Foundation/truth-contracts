@@ -14,6 +14,7 @@ contract RelayerToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable
   mapping(address => bool) public validBridge;
 
   int256 public constant latestAnswer = 200000000000000; // $5000 per ETH
+  string public constant version = '1';
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -44,18 +45,11 @@ contract RelayerToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable
     }
   }
 
-  function swap(
-    address /* recipient */,
-    bool /* zeroForOne */,
-    int256 amountSpecified,
-    uint160 /* sqrtPriceLimitX96 */,
-    bytes calldata /* data */
-  ) external returns (int256 amount0, int256 amount1) {
+  function swap(address, bool, int256 usdcInAmount, uint160, bytes calldata) external returns (int256, int256) {
     if (!validBridge[msg.sender]) revert();
-    amount0 = 0;
-    amount1 = (latestAnswer * amountSpecified) / 1e6;
-    IUniswapV3Callback(msg.sender).uniswapV3SwapCallback(amountSpecified, 0, '');
-    amount1 *= -1;
+    int256 ethOutAmount = (-1 * latestAnswer * usdcInAmount * 99) / (100 * 1e6);
+    IUniswapV3Callback(msg.sender).uniswapV3SwapCallback(usdcInAmount, 0, '');
+    return (0, ethOutAmount);
   }
 
   function decimals() public pure override returns (uint8) {

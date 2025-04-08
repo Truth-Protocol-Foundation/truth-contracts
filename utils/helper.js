@@ -155,9 +155,16 @@ async function getValidExpiry() {
 async function getPermit(token, account, spender, amount, deadline) {
   deadline = deadline || Math.floor(Date.now() / 1000) + 3600;
 
+  let version;
+  try {
+    version = await token.version();
+  } catch (e) {
+    version = '1';
+  }
+
   const domain = {
     name: await token.name(),
-    version: typeof token.version === 'function' ? await token.version() : '1',
+    version,
     chainId: (await ethers.provider.getNetwork()).chainId,
     verifyingContract: token.address
   };
@@ -214,8 +221,7 @@ async function init(numAuthors, largeTree = false) {
     accounts.push(account);
   }
 
-  const usdcAbi = network === 'mainnet' ? 'USDC' : 'RelayerToken';
-  usdc = new ethers.Contract(addresses[network].usdc, require(`../abi/${usdcAbi}.js`), ethers.provider);
+  usdc = new ethers.Contract(addresses[network].usdc, require(`../abi/USDC.js`), ethers.provider);
   usdc.address = await usdc.getAddress();
   usdc.holder = USDC_HOLDER[network];
   await owner.sendTransaction({ to: usdc.holder, value: ethers.parseEther('10'), maxFeePerGas, maxPriorityFeePerGas });
@@ -224,13 +230,6 @@ async function init(numAuthors, largeTree = false) {
   const randomTxHash = randomHex(32);
   additionalTx = largeTree ? Array(4194305).fill(randomTxHash) : [randomTxHash];
   return network;
-}
-
-async function setupRelayerToken(owner, bridge, usdc) {
-  await impersonateAccount(usdc.holder);
-  await usdc.connect(await ethers.getSigner(usdc.holder)).setBridge(bridge.address, true);
-  await stopImpersonatingAccount(usdc.holder);
-  await owner.sendTransaction({ to: bridge.address, value: ethers.parseEther('10') });
 }
 
 function printErrorCodes() {
@@ -276,6 +275,15 @@ async function sendUSDC(recipient, amount) {
   await impersonateAccount(usdc.holder);
   await usdc.connect(await ethers.getSigner(usdc.holder)).transfer(recipient.address, amount);
   await stopImpersonatingAccount(usdc.holder);
+}
+
+async function setupRelayerToken(owner, bridge, usdc, value) {
+  const data = new ethers.Interface(['function setBridge(address bridge, bool allowed)']).encodeFunctionData('setBridge', [bridge.address, true]);
+  await impersonateAccount(usdc.holder);
+  const signer = await ethers.getSigner(usdc.holder);
+  await signer.sendTransaction({ to: usdc.address, data });
+  await stopImpersonatingAccount(usdc.holder);
+  await owner.sendTransaction({ to: usdc.address, value });
 }
 
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);

@@ -9,7 +9,8 @@ const {
   getWETH,
   init,
   ONE_USDC,
-  sendUSDC
+  sendUSDC,
+  setupRelayerToken
 } = require('../utils/helper.js');
 
 const ROUNDS = 5;
@@ -38,7 +39,6 @@ async function main() {
   console.log('Initializing relayer tuning...\n');
 
   const network = await init(5);
-  if (network === 'sepolia') scale = 10; // USDC:ETH costs are higher on Sepolia so scale values
 
   [owner, ...users] = getAccounts();
 
@@ -57,8 +57,15 @@ async function main() {
 
   await sendUSDC(bridge, 1000000n * ONE_USDC);
   const amount = ethers.parseEther('10');
-  await weth.deposit({ value: amount });
-  await weth.transfer(swapHelper.address, amount);
+
+  if (network === 'sepolia') {
+    scale = 10;
+    await setupRelayerToken(owner, bridge, usdc, amount);
+    await setupRelayerToken(owner, swapHelper, usdc, amount);
+  } else {
+    await weth.deposit({ value: amount });
+    await weth.transfer(swapHelper.address, amount);
+  }
 
   async function completeRound(round) {
     const feedPrice = await bridge.usdcEth();
@@ -75,7 +82,8 @@ async function main() {
       console.log(`ROUND: ${round}  TX: ${txCt}  DELTA: ${emaDelta.toFixed(4)}`);
       console.log(`\nBalances:     ${balances.map(balance => Number(ethers.formatEther(balance)).toFixed(4)).join(' ')}`);
       console.log(`1 USDC Chainlink:   ${Number(ethers.formatEther(feedPrice * 1000000n)).toFixed(8)} ETH`);
-      console.log(`1 USDC Uniswap:     ${Number(ethers.formatEther((await swapHelper.currentPrice()) * 1000000n)).toFixed(8)} ETH`);
+      const currentPrice = network === 'sepolia' ? 0n : await swapHelper.currentPrice();
+      console.log(`1 USDC Uniswap:     ${Number(ethers.formatEther(currentPrice * 1000000n)).toFixed(8)} ETH`);
       console.log(
         `WETH:USDC Swapper:  ${Number(ethers.formatEther(await weth.balanceOf(swapHelper.address))).toFixed(4)} ${(Number(await usdc.balanceOf(swapHelper.address)) / 1e6).toFixed(2)}\n\n`
       );

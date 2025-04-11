@@ -72,6 +72,15 @@ describe('User Functions', async () => {
           .withArgs(truth.address, t2PubKey, amount);
       });
 
+      it('in lifting tokens to the prediction market and the t2 public key specifed', async () => {
+        const recipientT2PubKey = randomBytes32();
+        await truth.approve(bridge.address, amount);
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount))
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, recipientT2PubKey, amount);
+      });
+
+
       it('in lifting tokens to the prediction market with a valid permit', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
         await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s))
@@ -88,6 +97,7 @@ describe('User Functions', async () => {
 
       it('attempting to lift tokens without supplying a T2 public key', async () => {
         await expect(bridge.lift(truth.address, EMPTY_BYTES, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+        await expect(bridge.predictionMarketRecipientLift(truth.address, EMPTY_BYTES_32, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
       });
 
       it('attempting to lift tokens with a permit but without supplying a T2 public key', async () => {
@@ -120,9 +130,11 @@ describe('User Functions', async () => {
       });
 
       it('attempting to lift to the prediction market when the contract is paused', async () => {
+        const recipientT2PubKey = randomBytes32();
         await bridge.pause();
         await truth.approve(bridge.address, amount);
         await expect(bridge.predictionMarketLift(truth.address, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         const permit = await getPermit(truth, owner, bridge, amount);
         await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,
@@ -191,7 +203,8 @@ describe('User Functions', async () => {
       Lift: 1,
       PermitLift: 2,
       PredictionMarketLift: 3,
-      PredictionMarketPermitLift: 4
+      PredictionMarketRecipientLift: 4,
+      PredictionMarketPermitLift: 5
     };
     const amount = 100n;
     let reentrantToken;
@@ -213,7 +226,7 @@ describe('User Functions', async () => {
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 
-    it('the lift with permit re-entrancy check is triggered correctly', async () => {
+    it('the permitLift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PermitLift);
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
@@ -223,7 +236,12 @@ describe('User Functions', async () => {
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 
-    it('the predictionMarketLift with permit re-entrancy check is triggered correctly', async () => {
+    it('the predictionMarketRecipientLift re-entrancy check is triggered correctly', async () => {
+      await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketRecipientLift);
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+    });
+
+    it('the predictionMarketPermitLift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketPermitLift);
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });

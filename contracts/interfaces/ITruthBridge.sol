@@ -19,6 +19,7 @@ interface ITruthBridge {
   function lift(address token, bytes calldata t2PubKey, uint256 amount) external;
   function permitLift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function predictionMarketLift(address token, uint256 amount) external;
+  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external;
   function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;

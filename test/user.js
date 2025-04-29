@@ -80,7 +80,6 @@ describe('User Functions', async () => {
           .withArgs(truth.address, recipientT2PubKey, amount);
       });
 
-
       it('in lifting tokens to the prediction market with a valid permit', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
         await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s))

@@ -1,3 +1,4 @@
+const { calcLiftGas, calcLowerGas } = require('../utils/gasCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -13,12 +14,10 @@ const {
   setupRelayerToken
 } = require('../utils/helper.js');
 
-const ROUNDS = 5;
+const ROUNDS = 100;
 const NUM_RELAYERS = 3;
 const DELTA_SMOOTHING = 0.2; // (0.1 = slow, 0.5 = fast)
 
-const MIN_GAS_PRICE = Number(ethers.parseUnits('1', 'gwei'));
-const MAX_GAS_PRICE = MIN_GAS_PRICE * 10;
 const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 
@@ -90,19 +89,22 @@ async function main() {
     } else console.log(`${round}, ${txCt}, ${emaDelta.toFixed(4)}`);
   }
 
-  async function doRelayerLift(user, amount, relayer, gasPrice) {
+  async function doRelayerLift(user, amount, relayer) {
     await sendUSDC(user, amount);
+    amount = Math.random() < 0.1 ? await usdc.balanceOf(user.address) : amount;
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-    const tx = await bridge.connect(relayer).relayerLift(amount, user.address, permit.v, permit.r, permit.s, { gasPrice });
+    const { gasUse, gasLimit, refund } = await calcLiftGas(usdc, bridge, amount, user, permit, relayer);
+    const tx = await bridge.connect(relayer).relayerLift(gasUse, amount, user.address, permit.v, permit.r, permit.s, refund, { gasLimit });
     const { gasCost, usdcFee } = await processTx(tx, amount);
-    if (LOG_TX_GAS) console.log(`LIFT , ${gasCost}, ${usdcFee}`);
+    if (LOG_TX_GAS) console.log(`LIFT , ${gasCost}, ${gasUse}, ${usdcFee}`);
   }
 
-  async function doRelayerLower(user, amount, relayer, gasPrice) {
+  async function doRelayerLower(user, amount, relayer) {
     [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-    const tx = await bridge.connect(relayer).relayerLower(lowerProof, { gasPrice });
+    const { gasUse, gasLimit, refund } = await calcLowerGas(bridge, lowerProof, relayer);
+    const tx = await bridge.connect(relayer).relayerLower(gasUse, lowerProof, refund, { gasLimit });
     const { gasCost, usdcFee } = await processTx(tx, amount);
-    if (LOG_TX_GAS) console.log(`LOWER, ${gasCost}, ${usdcFee}`);
+    if (LOG_TX_GAS) console.log(`LOWER, ${gasCost}, ${gasUse}, ${usdcFee}`);
   }
 
   async function processTx(tx, amount) {
@@ -117,20 +119,19 @@ async function main() {
         totalFees += fee;
       }
     }
-    return { gasCost: parseInt(receipt.gasUsed), usdcFee: `$${(Number(fee) / 1e6).toFixed(2)}` };
+    return { gasCost: parseInt(receipt.gasUsed), usdcFee: `${(Number(fee) / 1e6).toFixed(6)}` };
   }
 
   console.log(`\nRunning for ${ROUNDS} rounds...\n`);
 
   for (let round = 1; round <= ROUNDS; round++) {
-    const gasPrice = Math.floor(Math.random() * (MAX_GAS_PRICE - MIN_GAS_PRICE + 1) + MIN_GAS_PRICE).toString();
     const txRate = Math.floor(Math.random() * (100 - 20 + 1)) + 20;
 
     for (let i = 0; i < txRate; i++) {
       const user = users[Math.floor(Math.random() * users.length)];
       const amount = BigInt(Math.floor(Math.random() * (MAX_USDC_AMOUNT - MIN_USDC_AMOUNT * scale + 1) + MIN_USDC_AMOUNT * scale));
       const relayer = relayers[Math.floor(Math.random() * relayers.length)];
-      Math.random() < 0.4 ? await doRelayerLift(user, amount, relayer, gasPrice) : await doRelayerLower(user, amount, relayer, gasPrice);
+      Math.random() < 0.6 ? await doRelayerLift(user, amount, relayer) : await doRelayerLower(user, amount, relayer);
     }
 
     await completeRound(round);

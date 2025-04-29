@@ -43,15 +43,6 @@ contract TruthBridge is
   uint256 private constant SIGNATURE_LENGTH = 65;
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
-  uint256 private constant LIFT_BASE_GAS = 35010;
-  uint256 private constant LOWER_BASE_GAS = 84555;
-  uint256 private constant LIFT_WRITE_TO_ZERO_GAS_DECREASE = 4795;
-  uint256 private constant LOWER_WRITE_FROM_ZERO_GAS_INCREASE = 17105;
-  uint256 private constant REFUND_GAS = 102180;
-  uint256 private constant REFUND_FREQUENCY = 25;
-  uint256 private constant BUFFER = 10075; // 0.75%
-  uint256 private constant SLIPPAGE = 9875; // 1.25%
-  uint256 private constant BASIS = 10000;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
@@ -279,54 +270,51 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLift(uint256 amount, address user, uint8 v, bytes32 r, bytes32 s) external {
+  function relayerLift(uint256 gasUse, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
 
-    uint256 variableGas = gasleft();
+    uint256 txCost = (gasUse * tx.gasprice) / usdcEth();
+    if (txCost > amount) revert AmountTooLow();
 
     IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
     IERC20(usdc).transferFrom(user, address(this), amount);
 
     unchecked {
-      variableGas -= gasleft();
-      if (IERC20(usdc).balanceOf(user) == 0) variableGas -= LIFT_WRITE_TO_ZERO_GAS_DECREASE;
-      uint256 gasUse = ((LIFT_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * BUFFER) / BASIS;
-      uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
-      if (usdcTxCost > amount) revert AmountTooLow();
-      amount -= usdcTxCost;
-      balance += int256(usdcTxCost);
+      amount -= txCost;
+      balance += int256(txCost);
     }
 
-    if (!_refundRelayer(balance)) relayerBalance[msg.sender] = balance;
+    if (refund) _attemptRelayerRefund(balance);
+    else relayerBalance[msg.sender] = balance;
+
     emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount);
   }
 
   /**
    * @dev Enables a relayer to lower USDC on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLower(bytes calldata proof) external {
+  function relayerLower(uint256 gasUse, bytes calldata proof, bool refund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
-
-    uint256 variableGas = gasleft();
-
     (address token, uint256 amount, address user, uint32 lowerId) = _extractLowerData(proof);
     if (token != usdc) revert InvalidToken();
+
+    uint256 txCost = (gasUse * tx.gasprice) / usdcEth();
+    if (txCost > amount) revert AmountTooLow();
+
     _processLower(token, amount, user, lowerId, proof);
 
     unchecked {
-      variableGas -= gasleft();
-      if (IERC20(usdc).balanceOf(user) == 0) variableGas += LOWER_WRITE_FROM_ZERO_GAS_INCREASE;
-      uint256 gasUse = ((LOWER_BASE_GAS + variableGas + (REFUND_GAS / REFUND_FREQUENCY)) * BUFFER) / BASIS;
-      uint256 usdcTxCost = (tx.gasprice * gasUse) / usdcEth();
-      if (usdcTxCost > amount) revert AmountTooLow();
-      amount -= usdcTxCost;
-      IERC20(usdc).transfer(user, amount);
-      balance += int256(usdcTxCost);
+      amount -= txCost;
+      balance += int256(txCost);
     }
 
-    if (!_refundRelayer(balance)) relayerBalance[msg.sender] = balance;
+    IERC20(usdc).transfer(user, amount);
+
+    if (refund) _attemptRelayerRefund(balance);
+    else relayerBalance[msg.sender] = balance;
+
     emit LogRelayerLowered(lowerId, amount);
   }
 
@@ -543,26 +531,22 @@ contract TruthBridge is
     id = v < 29 && uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 ? t1AddressToId[ecrecover(prefixedMsgHash, v, r, s)] : 0;
   }
 
-  function _refundRelayer(int256 balance) private returns (bool success) {
-    if (uint256(blockhash(block.number - 1)) % REFUND_FREQUENCY == 0) {
-      try this.__refundRelayer(msg.sender, balance - 1) {
-        relayerBalance[msg.sender] = 1; // reset to trace balance on success
-        success = true;
-      } catch {
-        emit LogRefundFailed(msg.sender, balance);
-      }
+  function _attemptRelayerRefund(int256 balance) private {
+    try this.__refundRelayer(msg.sender, balance - 1) {
+      relayerBalance[msg.sender] = 1; // reset to trace balance on success
+    } catch {
+      emit LogRefundFailed(msg.sender, balance);
     }
   }
 
   function __refundRelayer(address relayer, int256 balance) external {
     if (msg.sender != address(this)) revert InvalidCaller();
-
     // triggers uniswapV3SwapCallback:
     (, int256 amount1) = IUniswapV3Pool(pool).swap(address(this), true, balance, MIN_SQRT_RATIO + 1, '');
 
     unchecked {
       uint256 ethAmount = uint256(amount1 * -1);
-      if (ethAmount < (uint256(balance) * usdcEth() * SLIPPAGE) / BASIS) revert();
+      if (ethAmount < (uint256(balance) * usdcEth() * 987) / 1000) revert(); // Allow 1% overhead + 0.3% fee
       IWETH9(weth).withdraw(ethAmount);
       (bool success, ) = relayer.call{ value: ethAmount }('');
       assembly {

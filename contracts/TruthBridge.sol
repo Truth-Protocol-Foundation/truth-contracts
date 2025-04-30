@@ -270,11 +270,11 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLift(uint256 gasUse, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external {
+  function relayerLift(uint256 gas, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
 
-    uint256 txCost = (gasUse * tx.gasprice) / usdcEth();
+    uint256 txCost = (gas * tx.gasprice) / usdcEth();
     if (txCost > amount) revert AmountTooLow();
 
     IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
@@ -294,13 +294,13 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lower USDC on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLower(uint256 gasUse, bytes calldata proof, bool refund) external {
+  function relayerLower(uint256 gas, bytes calldata proof, bool refund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
     (address token, uint256 amount, address user, uint32 lowerId) = _extractLowerData(proof);
     if (token != usdc) revert InvalidToken();
 
-    uint256 txCost = (gasUse * tx.gasprice) / usdcEth();
+    uint256 txCost = (gas * tx.gasprice) / usdcEth();
     if (txCost > amount) revert AmountTooLow();
 
     _processLower(token, amount, user, lowerId, proof);

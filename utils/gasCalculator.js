@@ -1,35 +1,51 @@
+const REFUND_GAS_COST = 83706n;
 const TX_PER_REFUND = 20;
-const REFUND_GAS = 98700n;
-const REFUND_GAS_CUT = REFUND_GAS / BigInt(TX_PER_REFUND);
-const DUMMY_GAS_USE = 1n;
-const DUMMY_REFUND = false;
-
-async function calcGas(relayerFn, args, overestimate) {
-  const refund = Math.random() < 0.05;
-  const gasEstimate = await relayerFn.estimateGas(...args);
-  const adjustedEstimate = (gasEstimate * 100000n) / overestimate;
-
-  return {
-    gasLimit: refund ? gasEstimate + REFUND_GAS * 2n : gasEstimate,
-    gasUse: ((adjustedEstimate + REFUND_GAS_CUT) * 101n) / 100n,
-    refund
-  };
-}
 
 async function calcLiftGas(usdc, bridge, amount, user, permit, relayer) {
-  const relayerFn = bridge.connect(relayer).relayerLift;
-  const args = [DUMMY_GAS_USE, amount, user.address, permit.v, permit.r, permit.s, DUMMY_REFUND];
+  const method = bridge.connect(relayer).relayerLift;
+  const args = [1n, amount, user.address, permit.v, permit.r, permit.s, false];
+  let overestimationFactor;
+
   const fullBalance = (await usdc.balanceOf(user.address)) === amount;
   const firstPermit = (await usdc.nonces(user.address)) === 0n;
-  const overestimate = fullBalance ? 126533n : firstPermit ? 120285n : 117945n;
-  return calcGas(relayerFn, args, overestimate);
+
+  if (fullBalance && firstPermit) overestimationFactor = 122632n;
+  else if (fullBalance && !firstPermit) overestimationFactor = 126533n;
+  else if (!fullBalance && firstPermit) overestimationFactor = 117946n;
+  else overestimationFactor = 120285n;
+
+  return calcGas(method, bridge, args, overestimationFactor);
 }
 
 async function calcLowerGas(bridge, lowerProof, relayer) {
-  const relayerFn = bridge.connect(relayer).relayerLower;
-  const args = [DUMMY_GAS_USE, lowerProof, DUMMY_REFUND];
-  const overestimate = 101543n;
-  return calcGas(relayerFn, args, overestimate);
+  const method = bridge.connect(relayer).relayerLower;
+  const args = [1n, lowerProof, false];
+  const overestimationFactor = 101543n;
+  return calcGas(method, bridge, args, overestimationFactor);
+}
+
+async function calcGas(method, bridge, args, overestimationFactor) {
+  const doRefund = Math.random() < 1 / TX_PER_REFUND;
+  const gasEstimate = await method.estimateGas(...args);
+  const methodGas = (gasEstimate * 100000n) / overestimationFactor;
+  const refundContribution = REFUND_GAS_COST / BigInt(TX_PER_REFUND);
+  const gas = ((methodGas + refundContribution) * 101n) / 100n;
+  const txCostEstimate = await estimateTxCost(bridge, gas);
+  const gasLimit = doRefund ? gasEstimate + REFUND_GAS_COST * 2n : gasEstimate;
+
+  return { gas, methodGas, gasLimit, txCostEstimate, doRefund };
+}
+
+async function estimateTxCost(bridge, gas) {
+  const feeData = await ethers.provider.getFeeData();
+  const block = await ethers.provider.getBlock('latest');
+
+  const baseFee = block.baseFeePerGas;
+  const maxFee = feeData.maxFeePerGas;
+  const tip = feeData.maxPriorityFeePerGas;
+
+  const effectiveGasPrice = baseFee + tip > maxFee ? maxFee : baseFee + tip;
+  return (gas * effectiveGasPrice) / (await bridge.usdcEth());
 }
 
 module.exports = { calcLiftGas, calcLowerGas };

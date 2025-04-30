@@ -23,8 +23,8 @@ interface ITruthBridge {
   function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;
-  function relayerLift(uint256 gasUse, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external;
-  function relayerLower(uint256 gasUse, bytes calldata proof, bool refund) external;
+  function relayerLift(uint256 gas, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external;
+  function relayerLower(uint256 gas, bytes calldata proof, bool refund) external;
   function usdcEth() external view returns (uint256 price);
   function claimLower(bytes calldata proof) external;
   function checkLower(

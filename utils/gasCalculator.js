@@ -1,4 +1,4 @@
-const REFUND_GAS_COST = 83706n;
+const REFUND_GAS_COST = 83730n;
 const TX_PER_REFUND = 20;
 
 async function calcLiftGas(usdc, bridge, amount, user, permit, relayer) {
@@ -29,7 +29,7 @@ async function calcGas(method, bridge, args, overestimationFactor) {
   const gasEstimate = await method.estimateGas(...args);
   const methodGas = (gasEstimate * 100000n) / overestimationFactor;
   const refundContribution = REFUND_GAS_COST / BigInt(TX_PER_REFUND);
-  const gas = ((methodGas + refundContribution) * 101n) / 100n;
+  const gas = ((methodGas + refundContribution)  * 1005n) / 1000n; // 0.5% buffer
   const txCostEstimate = await estimateTxCost(bridge, gas);
   const gasLimit = doRefund ? gasEstimate + REFUND_GAS_COST * 2n : gasEstimate;
 

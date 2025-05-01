@@ -1,4 +1,4 @@
-const { calcLiftGas, calcLowerGas } = require('../utils/gasCalculator.js');
+const { calculateLift, calculateLower } = require('../utils/gasCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -20,9 +20,8 @@ const DELTA_SMOOTHING = 0.2; // (0.1 = slow, 0.5 = fast)
 const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
-const HEADER =
-  'Method, Gas Requested, Calculated Gas, Used Gas, Excess Requested, Calculation Diff, Correct, Estimated Tx Cost, Actual Tx Cost, Tx Cost Diff, USDC Cost';
-const LOG_GAS = false;
+const HEADER = 'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
+const LOG_GAS = true;
 
 async function main() {
   let bridge, truth, usdc, weth, swapHelper;
@@ -107,44 +106,53 @@ async function main() {
     await sendUSDC(user, amount);
     amount = Math.random() < 0.1 ? await usdc.balanceOf(user.address) : amount;
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-    const { gas, methodGas, gasLimit, doRefund, txCostEstimate } = await calcLiftGas(usdc, bridge, amount, user, permit, relayer);
-    const tx = await bridge.connect(relayer).relayerLift(gas, amount, user.address, permit.v, permit.r, permit.s, doRefund, { gasLimit });
-    const { gasUsed, txCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lift', gas, methodGas, gasUsed, txCostEstimate, txCost);
+    const { estimatedCost, gasCost, gasLimit, methodGas, refundGas, triggerRefund } = await calculateLift(amount, bridge, permit, relayer, usdc, user);
+    const tx = await bridge.connect(relayer).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, triggerRefund, { gasLimit });
+    const { actualGas, actualCost } = await processTx(tx, amount);
+    if (LOG_GAS) logGas('Lift', actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund);
   }
 
   async function doRelayerLower(user, amount, relayer) {
     [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-    const { gas, methodGas, gasLimit, doRefund, txCostEstimate } = await calcLowerGas(bridge, lowerProof, relayer);
-    const tx = await bridge.connect(relayer).relayerLower(gas, lowerProof, doRefund, { gasLimit });
-    const { gasUsed, txCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lower', gas, methodGas, gasUsed, txCostEstimate, txCost);
+    const { estimatedCost, gasCost, gasLimit, methodGas, refundGas, triggerRefund } = await calculateLower(bridge, lowerProof, relayer, usdc);
+    const tx = await bridge.connect(relayer).relayerLower(gasCost, lowerProof, triggerRefund, { gasLimit });
+    const { actualGas, actualCost } = await processTx(tx, amount);
+    if (LOG_GAS) logGas('Lower', actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund);
   }
 
-  function logGas(op, gas, methodGas, gasUsed, txCostEstimate, txCost) {
-    gas = parseInt(gas);
-    const mGas = parseInt(methodGas);
-    const uGas = parseInt(gasUsed);
-    const usdcCost = `$${(Number(txCost) / 1e6).toFixed(2)}`;
-    const okay = 1 === Math.round((mGas / uGas) * 10000) / 10000;
+  function logGas(method, actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund) {
+    actualCost = parseInt(actualCost);
+    actualGas = parseInt(actualGas);
+    estimatedCost = parseInt(estimatedCost);
+    gasCost = parseInt(gasCost);
+    methodGas = parseInt(methodGas);
+    refundGas = parseInt(refundGas);
+    
+    const auxGas = gasCost - methodGas;
+    const gasDiff = triggerRefund === true ? methodGas + refundGas - actualGas : methodGas - actualGas;
+    const gasOkay = Math.abs(gasDiff) < 100;
+    const costDiff = estimatedCost - actualCost;
+    const costOkay = Math.abs(costDiff) < 50;
+    const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;
+
     console.log(
-      `${op}, ${gas}, ${mGas}, ${uGas}, ${gas - uGas}, ${mGas - uGas}, ${okay}, ${txCostEstimate}, ${txCost}, ${txCostEstimate - txCost}, ${usdcCost}`
+      `${method}, ${triggerRefund}, ${methodGas}, ${auxGas}, ${actualGas}, ${gasDiff}, ${estimatedCost}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`
     );
   }
 
   async function processTx(tx, amount) {
     txCt++;
-    let txCost;
+    let actualCost;
     const receipt = await tx.wait();
     for (const log of receipt.logs.filter(log => log.address === bridge.address)) {
       const event = bridge.interface.parseLog(log);
       if (event.name === 'LogRefundFailed') console.warn(`⚠️ REFUND FAILURE: ${receipt.hash}`);
       else {
-        txCost = amount - event.args.amount;
-        totalFees += txCost;
+        actualCost = amount - event.args.amount;
+        totalFees += actualCost;
       }
     }
-    return { gasUsed: receipt.gasUsed, txCost };
+    return { actualGas: receipt.gasUsed, actualCost };
   }
 }
 

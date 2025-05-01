@@ -1,42 +1,47 @@
-const REFUND_GAS_COST = 83730n;
-const TX_PER_REFUND = 20;
+const addresses = require('./addresses.js');
 
-async function calcLiftGas(usdc, bridge, amount, user, permit, relayer) {
+const TX_PER_REFUND = 20;
+const DUMMY_GAS_COST = 1n;
+
+async function calculateLift(amount, bridge, permit, relayer, usdc, user) {
   const method = bridge.connect(relayer).relayerLift;
-  const args = [1n, amount, user.address, permit.v, permit.r, permit.s, false];
-  let overestimationFactor;
+  const args = [DUMMY_GAS_COST, amount, user.address, permit.v, permit.r, permit.s, false];
 
   const fullBalance = (await usdc.balanceOf(user.address)) === amount;
   const firstPermit = (await usdc.nonces(user.address)) === 0n;
+  const realUSDC = usdc.address.toLowerCase() === addresses.mainnet.usdc.toLowerCase();
 
-  if (fullBalance && firstPermit) overestimationFactor = 122632n;
-  else if (fullBalance && !firstPermit) overestimationFactor = 126533n;
-  else if (!fullBalance && firstPermit) overestimationFactor = 117946n;
-  else overestimationFactor = 120285n;
+  let overestimationFactor;
+  if (fullBalance && firstPermit) overestimationFactor = realUSDC ? 122632n : 126536n;
+  else if (fullBalance && !firstPermit) overestimationFactor = realUSDC ? 126533n : 126532n;
+  else if (!fullBalance && firstPermit) overestimationFactor = realUSDC ? 117946n : 122625n;
+  else overestimationFactor = realUSDC ? 120285n : 126534n;
 
-  return calcGas(method, bridge, args, overestimationFactor);
+  return calculateCosts(args, bridge, method, overestimationFactor, usdc);
 }
 
-async function calcLowerGas(bridge, lowerProof, relayer) {
+async function calculateLower(bridge, lowerProof, relayer, usdc) {
   const method = bridge.connect(relayer).relayerLower;
-  const args = [1n, lowerProof, false];
+  const args = [DUMMY_GAS_COST, lowerProof, false];
   const overestimationFactor = 101543n;
-  return calcGas(method, bridge, args, overestimationFactor);
+  return calculateCosts(args, bridge, method, overestimationFactor, usdc);
 }
 
-async function calcGas(method, bridge, args, overestimationFactor) {
-  const doRefund = Math.random() < 1 / TX_PER_REFUND;
-  const gasEstimate = await method.estimateGas(...args);
-  const methodGas = (gasEstimate * 100000n) / overestimationFactor;
-  const refundContribution = REFUND_GAS_COST / BigInt(TX_PER_REFUND);
-  const gas = ((methodGas + refundContribution)  * 1005n) / 1000n; // 0.5% buffer
-  const txCostEstimate = await estimateTxCost(bridge, gas);
-  const gasLimit = doRefund ? gasEstimate + REFUND_GAS_COST * 2n : gasEstimate;
+async function calculateCosts(args, bridge, method, overestimationFactor, usdc) {
+  const refundGas = usdc.address.toLowerCase() === addresses.mainnet.usdc.toLowerCase() ? 83700n : 32750n;
+  const triggerRefund = Math.random() < 1 / TX_PER_REFUND;
+  const txGasEstimate = await method.estimateGas(...args);
+  const methodGas = (txGasEstimate * 100000n) / overestimationFactor;
+  const refundContribution = refundGas / BigInt(TX_PER_REFUND);
+  let gasCost = methodGas + refundContribution;
+  gasCost = (gasCost * 1075n) / 1000n; // 0.75% buffer
+  const estimatedCost = await estimateTxCost(bridge, gasCost);
+  const gasLimit = triggerRefund === true ? txGasEstimate + refundGas * 2n : txGasEstimate;
 
-  return { gas, methodGas, gasLimit, txCostEstimate, doRefund };
+  return { estimatedCost, gasCost, gasLimit, methodGas, refundGas, triggerRefund };
 }
 
-async function estimateTxCost(bridge, gas) {
+async function estimateTxCost(bridge, gasCost) {
   const feeData = await ethers.provider.getFeeData();
   const block = await ethers.provider.getBlock('latest');
 
@@ -45,7 +50,7 @@ async function estimateTxCost(bridge, gas) {
   const tip = feeData.maxPriorityFeePerGas;
 
   const effectiveGasPrice = baseFee + tip > maxFee ? maxFee : baseFee + tip;
-  return (gas * effectiveGasPrice) / (await bridge.usdcEth());
+  return (gasCost * effectiveGasPrice) / (await bridge.usdcEth());
 }
 
-module.exports = { calcLiftGas, calcLowerGas };
+module.exports = { calculateLift, calculateLower };

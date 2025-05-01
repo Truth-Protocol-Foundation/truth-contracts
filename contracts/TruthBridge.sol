@@ -7,7 +7,7 @@ pragma solidity 0.8.28;
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
- * Enables gas-free lifting of USDC funds via relayers.
+ * Enables gasless lifting of USDC funds via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
@@ -270,11 +270,11 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLift(uint256 gas, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool refund) external {
+  function relayerLift(uint256 gasCost, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool triggerRefund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
 
-    uint256 txCost = (gas * tx.gasprice) / usdcEth();
+    uint256 txCost = (gasCost * tx.gasprice) / usdcEth();
     if (txCost > amount) revert AmountTooLow();
 
     IERC20Permit(usdc).permit(user, address(this), amount, type(uint256).max, v, r, s);
@@ -285,7 +285,7 @@ contract TruthBridge is
       balance += int256(txCost);
     }
 
-    if (refund) _attemptRelayerRefund(balance);
+    if (triggerRefund) _attemptRelayerRefund(balance);
     else relayerBalance[msg.sender] = balance;
 
     emit LogLiftedToPredictionMarket(usdc, deriveT2PublicKey(user), amount);
@@ -294,13 +294,13 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lower USDC on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLower(uint256 gas, bytes calldata proof, bool refund) external {
+  function relayerLower(uint256 gasCost, bytes calldata proof, bool triggerRefund) external {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
     (address token, uint256 amount, address user, uint32 lowerId) = _extractLowerData(proof);
     if (token != usdc) revert InvalidToken();
 
-    uint256 txCost = (gas * tx.gasprice) / usdcEth();
+    uint256 txCost = (gasCost * tx.gasprice) / usdcEth();
     if (txCost > amount) revert AmountTooLow();
 
     _processLower(token, amount, user, lowerId, proof);
@@ -312,7 +312,7 @@ contract TruthBridge is
 
     IERC20(usdc).transfer(user, amount);
 
-    if (refund) _attemptRelayerRefund(balance);
+    if (triggerRefund) _attemptRelayerRefund(balance);
     else relayerBalance[msg.sender] = balance;
 
     emit LogRelayerLowered(lowerId, amount);

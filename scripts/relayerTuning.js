@@ -1,4 +1,4 @@
-const { calculateLift, calculateLower } = require('../utils/gasCalculator.js');
+const { costLift, costLower } = require('../utils/costCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -20,7 +20,8 @@ const DELTA_SMOOTHING = 0.2; // (0.1 = slow, 0.5 = fast)
 const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
-const HEADER = 'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
+const HEADER =
+  'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
 const LOG_GAS = true;
 
 async function main() {
@@ -106,37 +107,33 @@ async function main() {
     await sendUSDC(user, amount);
     amount = Math.random() < 0.1 ? await usdc.balanceOf(user.address) : amount;
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-    const { estimatedCost, gasCost, gasLimit, methodGas, refundGas, triggerRefund } = await calculateLift(amount, bridge, permit, relayer, usdc, user);
+    const { gasEstimate, gasCost, gasLimit, refundGas, triggerRefund, txCostEstimate } = await costLift(bridge, relayer, amount, permit, user);
     const tx = await bridge.connect(relayer).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, triggerRefund, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lift', actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lift', actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
   }
 
   async function doRelayerLower(user, amount, relayer) {
     [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-    const { estimatedCost, gasCost, gasLimit, methodGas, refundGas, triggerRefund } = await calculateLower(bridge, lowerProof, relayer, usdc);
+    const { gasEstimate, gasCost, gasLimit, refundGas, triggerRefund, txCostEstimate } = await costLower(bridge, relayer, lowerProof);
     const tx = await bridge.connect(relayer).relayerLower(gasCost, lowerProof, triggerRefund, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lower', actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lower', actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
   }
 
-  function logGas(method, actualCost, actualGas, estimatedCost, gasCost, methodGas, refundGas, triggerRefund) {
+  function logGas(method, actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund) {
     actualCost = parseInt(actualCost);
     actualGas = parseInt(actualGas);
-    estimatedCost = parseInt(estimatedCost);
-    gasCost = parseInt(gasCost);
-    methodGas = parseInt(methodGas);
-    refundGas = parseInt(refundGas);
-    
-    const auxGas = gasCost - methodGas;
-    const gasDiff = triggerRefund === true ? methodGas + refundGas - actualGas : methodGas - actualGas;
+
+    const auxGas = gasCost - gasEstimate;
+    const gasDiff = triggerRefund === true ? gasEstimate + refundGas - actualGas : gasEstimate - actualGas;
     const gasOkay = Math.abs(gasDiff) < 100;
-    const costDiff = estimatedCost - actualCost;
+    const costDiff = txCostEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;
     const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;
 
     console.log(
-      `${method}, ${triggerRefund}, ${methodGas}, ${auxGas}, ${actualGas}, ${gasDiff}, ${estimatedCost}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`
+      `${method}, ${triggerRefund}, ${gasEstimate}, ${auxGas}, ${actualGas}, ${gasLimit}, ${gasDiff}, ${txCostEstimate}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`
     );
   }
 

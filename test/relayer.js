@@ -1,4 +1,4 @@
-const { calculateLift, calculateLower } = require('../utils/gasCalculator.js');
+const { costLift, costLower } = require('../utils/costCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -62,7 +62,7 @@ describe('Relayer Functions', async () => {
         const amount = 10n * ONE_USDC;
         await sendUSDC(user, amount);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-        const { gasCost } = await calculateLift(amount, bridge, permit, relayer2, usdc, user);
+        const { gasCost } = await costLift(bridge, relayer2, amount, permit, user);
         await bridge.connect(relayer2).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, false);
 
         expect(await usdc.balanceOf(relayer2.address)).to.equal(0);
@@ -96,7 +96,7 @@ describe('Relayer Functions', async () => {
         const initialBridgeUSDCBalance = await usdc.balanceOf(bridge.address);
         const initialRelayerETHBalance = await ethers.provider.getBalance(relayer1.address);
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-         const { gasCost } = await calculateLift(amount, bridge, permit, relayer1, usdc, user);
+        const { gasCost } = await costLift(bridge, relayer1, amount, permit, user);
         await expect(bridge.connect(relayer1).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, false)).to.emit(
           bridge,
           'LogLiftedToPredictionMarket'
@@ -112,11 +112,10 @@ describe('Relayer Functions', async () => {
       it('if the caller is not a relayer', async () => {
         const amount = 1n * ONE_USDC;
         const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-         const { gasCost } = await calculateLift(amount, bridge, permit, relayer1, usdc, user);
-        await expect(bridge.connect(otherAccount).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, false)).to.be.revertedWithCustomError(
-          bridge,
-          'RelayerOnly'
-        );
+        const { gasCost } = await costLift(bridge, relayer1, amount, permit, user);
+        await expect(
+          bridge.connect(otherAccount).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, false)
+        ).to.be.revertedWithCustomError(bridge, 'RelayerOnly');
       });
 
       it('if the permit is invalid', async () => {
@@ -149,7 +148,7 @@ describe('Relayer Functions', async () => {
       it('in lowering tokens to the recipient in the proof', async () => {
         const lowerAmount = 10n * ONE_USDC;
         const [lowerProof] = await createLowerProof(bridge, usdc, lowerAmount, user);
-        const { gasCost } = await calculateLower(bridge, lowerProof, relayer1, usdc);
+        const { gasCost } = await costLower(bridge, relayer1, lowerProof);
         await expect(bridge.connect(relayer1).relayerLower(gasCost, lowerProof, false)).to.emit(bridge, 'LogRelayerLowered');
       });
     });
@@ -157,7 +156,7 @@ describe('Relayer Functions', async () => {
     context('fails when', async () => {
       it('if the caller is not a relayer', async () => {
         [lowerProof] = await createLowerProof(bridge, usdc, 10n * ONE_USDC, user);
-        const { gasCost } = await calculateLower(bridge, lowerProof, relayer1, usdc);
+        const { gasCost } = await costLower(bridge, relayer1, lowerProof);
         await expect(bridge.relayerLower(gasCost, lowerProof, false)).to.be.revertedWithCustomError(bridge, 'RelayerOnly');
       });
 
@@ -200,7 +199,7 @@ describe('Relayer Functions', async () => {
       const ethBalance = await ethers.provider.getBalance(relayer1.address);
       await sendUSDC(user, amount);
       const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-       const { gasCost } = await calculateLift(amount, bridge, permit, relayer1, usdc, user);
+      const { gasCost } = await costLift(bridge, relayer1, amount, permit, user);
       await bridge.connect(relayer1).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, true);
       const newEthBalance = await ethers.provider.getBalance(relayer1.address);
       expect(newEthBalance > ethBalance);
@@ -212,7 +211,7 @@ describe('Relayer Functions', async () => {
       const ethBalance = await ethers.provider.getBalance(relayer1.address);
       await sendUSDC(bridge, amount);
       [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-      const { gasCost } = await calculateLower(bridge, lowerProof, relayer1, usdc);
+      const { gasCost } = await costLower(bridge, relayer1, lowerProof);
       await bridge.connect(relayer1).relayerLower(gasCost, lowerProof, false);
       const newEthBalance = await ethers.provider.getBalance(relayer1.address);
       expect(newEthBalance > ethBalance);
@@ -230,7 +229,7 @@ describe('Relayer Functions', async () => {
       while (!slipped) {
         await sendUSDC(bridge, amount);
         [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-        const { gasCost } = await calculateLower(bridge, lowerProof, relayer1, usdc);
+        const { gasCost } = await costLower(bridge, relayer1, lowerProof);
         const tx = await bridge.connect(relayer1).relayerLower(gasCost, lowerProof, true);
         const receipt = await tx.wait();
         for (const log of receipt.logs.filter(log => log.address === bridge.address)) {
@@ -244,7 +243,7 @@ describe('Relayer Functions', async () => {
       const userBalance = await usdc.balanceOf(user.address);
       await usdc.connect(user).transfer(bridge.address, userBalance);
       [lowerProof] = await createLowerProof(bridge, usdc, userBalance, user);
-      const { gasCost } = await calculateLower(bridge, lowerProof, relayer1, usdc);
+      const { gasCost } = await costLower(bridge, relayer1, lowerProof);
       await bridge.connect(relayer1).relayerLower(gasCost, lowerProof, false);
     });
   });

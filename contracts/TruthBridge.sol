@@ -240,6 +240,14 @@ contract TruthBridge is
   }
 
   /**
+   * @dev Lifts tokens to the specified T2 account on the prediction market, provided they have first been approved.
+   */
+  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
+    if (t2PubKey == bytes32(0)) revert InvalidT2Key();
+    emit LogLiftedToPredictionMarket(token, t2PubKey, _lift(msg.sender, token, amount));
+  }
+
+  /**
    * @dev Registers a relayer for proxying user on-ramp completions
    */
   function registerRelayer(address relayer) external onlyOwner {

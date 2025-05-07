@@ -277,6 +277,15 @@ async function sendUSDC(recipient, amount) {
   await stopImpersonatingAccount(usdc.holder);
 }
 
+async function setupRelayerToken(owner, bridge, usdc, value) {
+  const data = new ethers.Interface(['function setBridge(address bridge, bool allowed)']).encodeFunctionData('setBridge', [bridge.address, true]);
+  await impersonateAccount(usdc.holder);
+  const signer = await ethers.getSigner(usdc.holder);
+  await signer.sendTransaction({ to: usdc.address, data });
+  await stopImpersonatingAccount(usdc.holder);
+  await owner.sendTransaction({ to: usdc.address, value });
+}
+
 const strip_0x = bytes => (bytes.startsWith('0x') ? bytes.slice(2) : bytes);
 
 function toAuthorAccount(account) {
@@ -346,6 +355,7 @@ module.exports = {
   randomHex,
   randomT2TxId,
   sendUSDC,
+  setupRelayerToken,
   strip_0x,
   toAuthorAccount,
   ZERO_ADDRESS

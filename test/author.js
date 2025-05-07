@@ -12,7 +12,6 @@ const {
   init,
   increaseBlockTimestamp,
   MIN_AUTHORS,
-  ONE_HUNDRED_BILLION,
   randomBytes32,
   randomHex,
   randomT2TxId,

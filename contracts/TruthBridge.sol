@@ -7,13 +7,14 @@ pragma solidity 0.8.28;
  * Allows Authors to be added and removed from participation in consensus.
  * "lifts" tokens from Ethereum addresses to Truth Network accounts.
  * "lowers" tokens from Truth Network accounts to Ethereum addresses.
- * Enables gas-free lifting of USDC funds via relayers.
+ * Enables gasless lifting of USDC funds via relayers.
  * Accepts optional ERC-2612 permits for lifting.
  * Proxy upgradeable implementation utilising EIP-1822.
  */
 
 import './interfaces/ITruthBridge.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
+import './interfaces/IUniswapV3Callback.sol';
 import './interfaces/IUniswapV3Pool.sol';
 import './interfaces/IWETH9.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
@@ -25,7 +26,15 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
-contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+contract TruthBridge is
+  ITruthBridge,
+  IUniswapV3Callback,
+  Initializable,
+  Ownable2StepUpgradeable,
+  PausableUpgradeable,
+  ReentrancyGuardUpgradeable,
+  UUPSUpgradeable
+{
   using SafeERC20 for IERC20;
 
   string private constant ESM_PREFIX = '\x19Ethereum Signed Message:\n32';
@@ -228,22 +237,6 @@ contract TruthBridge is ITruthBridge, Initializable, Ownable2StepUpgradeable, Pa
   function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
-  }
-
-  /**
-   * @dev Prediction market lift variant accepting an ERC-2612 permit and lifter address to enable proxyied lifting.
-   */
-  function predictionMarketProxyLift(
-    address token,
-    address lifter,
-    uint256 amount,
-    uint256 deadline,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) external whenNotPaused nonReentrant {
-    IERC20Permit(token).permit(lifter, address(this), amount, deadline, v, r, s);
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(lifter), _lift(lifter, token, amount));
   }
 
   /**

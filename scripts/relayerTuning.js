@@ -22,7 +22,7 @@ const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
 const HEADER =
   'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
-const LOG_GAS = true;
+const LOG_GAS = false;
 
 async function main() {
   let bridge, truth, usdc, weth, swapHelper;
@@ -127,7 +127,7 @@ async function main() {
 
     const auxGas = gasCost - gasEstimate;
     const gasDiff = triggerRefund === true ? gasEstimate + refundGas - actualGas : gasEstimate - actualGas;
-    const gasOkay = Math.abs(gasDiff) < 100;
+    const gasOkay = Math.abs(gasDiff) < 20;
     const costDiff = txCostEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;
     const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;

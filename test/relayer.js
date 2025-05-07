@@ -1,4 +1,4 @@
-const { deployTruthBridge, deployTruthToken, expect, getAccounts, getPermit, getUSDC, init, ONE_HUNDRED_BILLION, ONE_USDC, sendUSDC } = require('./helper.js');
+const { deployBridge, deployToken, expect, getAccounts, getPermit, getUSDC, init, ONE_USDC, sendUSDC } = require('../utils/helper.js');
 
 let bridge, truth, usdc, owner, otherAccount, relayer1, relayer2, user, userT2PubKey;
 
@@ -7,8 +7,8 @@ describe('Relayer Functions', async () => {
     const numAuthors = 6;
     await init(numAuthors);
     [owner, otherAccount, relayer1, relayer2, user] = getAccounts();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
-    bridge = await deployTruthBridge(truth, owner);
+    truth = await deployToken(owner);
+    bridge = await deployBridge(truth, owner);
     usdc = await getUSDC();
     userT2PubKey = await bridge.deriveT2PublicKey(user.address);
     const relayerLiftGas = 105000n;

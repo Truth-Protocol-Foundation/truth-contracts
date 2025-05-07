@@ -1,6 +1,6 @@
 const {
-  deployTruthBridge,
-  deployTruthToken,
+  deployBridge,
+  deployToken,
   expect,
   EXPIRY_WINDOW,
   getAccounts,
@@ -18,7 +18,7 @@ const {
   randomT2TxId,
   strip_0x,
   toAuthorAccount
-} = require('./helper.js');
+} = require('../utils/helper.js');
 
 let authors, bridge, truth, senderAuthor, existingAuthor, newAuthor, prospectiveAuthor;
 
@@ -28,8 +28,8 @@ describe('Author Functions', async () => {
     await init(numAuthors);
     [owner, newAuthor, prospectiveAuthor] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
-    bridge = await deployTruthBridge(truth, owner);
+    truth = await deployToken(owner);
+    bridge = await deployBridge(truth, owner);
     senderAuthor = authors[0].account;
     existingAuthor = authors[1];
     newAuthor = toAuthorAccount(newAuthor);

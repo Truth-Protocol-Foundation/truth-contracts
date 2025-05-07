@@ -1,4 +1,4 @@
-const { deployTruthBridge, deployTruthToken, expect, getAccounts, getAuthors, init, ONE_HUNDRED_BILLION, ZERO_ADDRESS } = require('./helper.js');
+const { deployBridge, deployToken, expect, getAccounts, getAuthors, init, ZERO_ADDRESS } = require('../utils/helper.js');
 let authors, bridge, truth, owner, newOwner, otherAccount, numAuthors;
 
 describe('Owner Functions', async () => {
@@ -7,8 +7,8 @@ describe('Owner Functions', async () => {
     await init(5);
     [owner, newOwner, otherAccount] = getAccounts();
     authors = getAuthors();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
-    bridge = await deployTruthBridge(truth, owner);
+    truth = await deployToken(owner);
+    bridge = await deployBridge(truth, owner);
   });
 
   context('Transferring Ownership', async () => {
@@ -127,7 +127,7 @@ describe('Owner Functions', async () => {
 
     context('succeeds', async () => {
       it('with the correct arguments', async () => {
-        const newBridge = await deployTruthBridge(truth, owner);
+        const newBridge = await deployBridge(truth, owner);
         initVals = initialValues();
 
         for (i = 0; i < numAuthors; i++) {

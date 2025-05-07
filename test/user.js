@@ -72,6 +72,14 @@ describe('User Functions', async () => {
           .withArgs(truth.address, t2PubKey, amount);
       });
 
+      it('in lifting tokens to the prediction market and the t2 public key specifed', async () => {
+        const recipientT2PubKey = randomBytes32();
+        await truth.approve(bridge.address, amount);
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount))
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, recipientT2PubKey, amount);
+      });
+
       it('in lifting tokens to the prediction market with a valid permit', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
         await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s))
@@ -129,9 +137,11 @@ describe('User Functions', async () => {
       });
 
       it('attempting to lift to the prediction market when the contract is paused', async () => {
+        const recipientT2PubKey = randomBytes32();
         await bridge.pause();
         await truth.approve(bridge.address, amount);
         await expect(bridge.predictionMarketLift(truth.address, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         const permit = await getPermit(truth, owner, bridge, amount);
         await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
           bridge,

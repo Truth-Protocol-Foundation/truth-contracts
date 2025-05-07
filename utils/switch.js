@@ -21,6 +21,7 @@ function run() {
 
   try {
     if (action === 'test') execSync(`npx hardhat test`, { stdio: 'inherit' });
+    else if (action === 'tune') execSync(`npx hardhat run scripts/relayerTuning.js`, { stdio: 'inherit' });
     else throw new Error(`invalid action: ${action}`);
   } catch (error) {
     console.error(error);

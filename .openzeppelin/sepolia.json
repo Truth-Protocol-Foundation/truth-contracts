@@ -314,11 +314,11 @@
         "0xbccB8DdDBbDe67Eb258C032d7A7A069780596101"
       ]
     },
-    "c4a332dbf7f5a26e13168aa4644935f66bf2b56a4abce13e0d17d6a57bcfa292": {
-      "address": "0xEE158E19450d4De36222E8C0F894a1193408885A",
-      "txHash": "0xe5a24e74cba4c952474337af30a2d7f6d30b2c1ff861d96696dfb1cf3350b7be",
+    "8f22154fedd45f6d9b71ee6f5919966c13a2a19c7c5457237fe71d977f593d74": {
+      "address": "0x58288AD3A20e2e0f3be000162829B1397948D2DB",
+      "txHash": "0xce9e5d4467d1845ae3c46ebbfc2b5af6ca98eb56475311274551cf5007275b13",
       "layout": {
-        "solcVersion": "0.8.28",
+        "solcVersion": "0.8.30",
         "storage": [
           {
             "label": "isAuthor",
@@ -326,7 +326,7 @@
             "slot": "0",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:48"
+            "src": "contracts\\TruthBridge.sol:57"
           },
           {
             "label": "authorIsActive",
@@ -334,7 +334,7 @@
             "slot": "1",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:49"
+            "src": "contracts\\TruthBridge.sol:58"
           },
           {
             "label": "t1AddressToId",
@@ -342,7 +342,7 @@
             "slot": "2",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:50"
+            "src": "contracts\\TruthBridge.sol:59"
           },
           {
             "label": "t2PubKeyToId",
@@ -350,7 +350,7 @@
             "slot": "3",
             "type": "t_mapping(t_bytes32,t_uint256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:51"
+            "src": "contracts\\TruthBridge.sol:60"
           },
           {
             "label": "idToT1Address",
@@ -358,7 +358,7 @@
             "slot": "4",
             "type": "t_mapping(t_uint256,t_address)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:52"
+            "src": "contracts\\TruthBridge.sol:61"
           },
           {
             "label": "idToT2PubKey",
@@ -366,7 +366,7 @@
             "slot": "5",
             "type": "t_mapping(t_uint256,t_bytes32)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:53"
+            "src": "contracts\\TruthBridge.sol:62"
           },
           {
             "label": "isPublishedRootHash",
@@ -374,7 +374,7 @@
             "slot": "6",
             "type": "t_mapping(t_bytes32,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:54"
+            "src": "contracts\\TruthBridge.sol:63"
           },
           {
             "label": "isUsedT2TxId",
@@ -382,7 +382,7 @@
             "slot": "7",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:55"
+            "src": "contracts\\TruthBridge.sol:64"
           },
           {
             "label": "hasLowered",
@@ -390,7 +390,7 @@
             "slot": "8",
             "type": "t_mapping(t_bytes32,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:56"
+            "src": "contracts\\TruthBridge.sol:65"
           },
           {
             "label": "numActiveAuthors",
@@ -398,7 +398,7 @@
             "slot": "9",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:57"
+            "src": "contracts\\TruthBridge.sol:66"
           },
           {
             "label": "nextAuthorId",
@@ -406,7 +406,7 @@
             "slot": "10",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:58"
+            "src": "contracts\\TruthBridge.sol:67"
           },
           {
             "label": "truth",
@@ -414,7 +414,7 @@
             "slot": "11",
             "type": "t_address",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:59"
+            "src": "contracts\\TruthBridge.sol:68"
           },
           {
             "label": "relayerBalance",
@@ -422,15 +422,16 @@
             "slot": "12",
             "type": "t_mapping(t_address,t_int256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:62"
+            "src": "contracts\\TruthBridge.sol:71"
           },
           {
-            "label": "onRampGas",
+            "label": "_unused",
             "offset": 0,
             "slot": "13",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:63"
+            "src": "contracts\\TruthBridge.sol:73",
+            "renamedFrom": "onRampGas"
           }
         ],
         "types": {
@@ -442,7 +443,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_struct(InitializableStorage)128_storage": {
+          "t_struct(InitializableStorage)146_storage": {
             "label": "struct Initializable.InitializableStorage",
             "members": [
               {
@@ -460,7 +461,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(Ownable2StepStorage)13_storage": {
+          "t_struct(Ownable2StepStorage)14_storage": {
             "label": "struct Ownable2StepUpgradeable.Ownable2StepStorage",
             "members": [
               {
@@ -472,7 +473,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OwnableStorage)68_storage": {
+          "t_struct(OwnableStorage)74_storage": {
             "label": "struct OwnableUpgradeable.OwnableStorage",
             "members": [
               {
@@ -484,7 +485,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(PausableStorage)274_storage": {
+          "t_struct(PausableStorage)318_storage": {
             "label": "struct PausableUpgradeable.PausableStorage",
             "members": [
               {
@@ -496,7 +497,7 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(ReentrancyGuardStorage)338_storage": {
+          "t_struct(ReentrancyGuardStorage)395_storage": {
             "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
             "members": [
               {
@@ -615,7 +616,7 @@
         }
       },
       "allAddresses": [
-        "0xEE158E19450d4De36222E8C0F894a1193408885A"
+        "0x58288AD3A20e2e0f3be000162829B1397948D2DB"
       ]
     }
   }

@@ -10,9 +10,9 @@ contract ReentrantToken is ERC20 {
     ClaimLower,
     Lift,
     PermitLift,
-    PredicitionMarketLift,
-    PredictionMarketRecipientLift,
-    PredicitonMarketPermitLift
+    PredicitonMarketLift,
+    PredicitonMarketPermitLift,
+    PredictionMarketRecipientLift
   }
 
   ReentryPoint private _reentryPoint;
@@ -49,7 +49,7 @@ contract ReentrantToken is ERC20 {
     else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKeyBytes, _amount);
     else if (_reentryPoint == ReentryPoint.PermitLift) _bridge.permitLift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s);
     else if (_reentryPoint == ReentryPoint.PredicitionMarketLift) _bridge.predictionMarketLift(_token, _amount);
-    else if (_reentryPoint == ReentryPoint.PredictionMarketRecipientLift) _bridge.predictionMarketRecipientLift(_token, _t2PubKey, _amount);
     else if (_reentryPoint == ReentryPoint.PredicitonMarketPermitLift) _bridge.predictionMarketPermitLift(_token, _amount, _deadline, _v, _r, _s);
+    else if (_reentryPoint == ReentryPoint.PredictionMarketRecipientLift) _bridge.predictionMarketRecipientLift(_token, _t2PubKey, _amount);
   }
 }

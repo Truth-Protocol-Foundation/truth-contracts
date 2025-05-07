@@ -86,6 +86,14 @@ describe('User Functions', async () => {
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, t2PubKey, amount);
       });
+
+      it('in lifting tokens to the prediction market and the t2 public key specifed', async () => {
+        const recipientT2PubKey = randomBytes32();
+        await truth.approve(bridge.address, amount);
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount))
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, recipientT2PubKey, amount);
+      });
     });
 
     context('fails when', async () => {
@@ -202,8 +210,8 @@ describe('User Functions', async () => {
       Lift: 1,
       PermitLift: 2,
       PredictionMarketLift: 3,
-      PredictionMarketRecipientLift: 4,
-      PredictionMarketPermitLift: 5
+      PredictionMarketPermitLift: 4,
+      PredictionMarketRecipientLift: 5
     };
     const amount = 100n;
     let reentrantToken;
@@ -235,13 +243,13 @@ describe('User Functions', async () => {
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 
-    it('the predictionMarketRecipientLift re-entrancy check is triggered correctly', async () => {
-      await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketRecipientLift);
+    it('the predictionMarketPermitLift with permit re-entrancy check is triggered correctly', async () => {
+      await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketPermitLift);
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 
-    it('the predictionMarketPermitLift re-entrancy check is triggered correctly', async () => {
-      await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketPermitLift);
+    it('the predictionMarketRecipientLift re-entrancy check is triggered correctly', async () => {
+      await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketRecipientLift);
       await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
   });

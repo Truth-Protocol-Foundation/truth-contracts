@@ -35,6 +35,7 @@
 | **predictionMarketLift**          | Yes                   | Lifter      | Derived from lifter address |
 | **predictionMarketRecipientLift** | Yes                   | Lifter      | `bytes32`                   |
 | **predictionMarketPermitLift**    | No                    | Lifter      | Derived from lifter address |
+| **predictionMarketRecipientLift** | Yes                   | Lifter      | `bytes32`                   |
 | **relayerLift**                   | No                    | Relayer     | Derived from lifter address |
 
 

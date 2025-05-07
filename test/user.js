@@ -1,8 +1,8 @@
 const {
   createLowerProof,
   createTreeAndPublishRoot,
-  deployTruthBridge,
-  deployTruthToken,
+  deployBridge,
+  deployToken,
   EMPTY_BYTES,
   EMPTY_BYTES_32,
   expect,
@@ -13,7 +13,7 @@ const {
   ONE_HUNDRED_BILLION,
   randomBytes32,
   ZERO_ADDRESS
-} = require('./helper.js');
+} = require('../utils/helper.js');
 
 let bridge, truth, owner, user, notUser, t2PubKey;
 
@@ -22,8 +22,8 @@ describe('User Functions', async () => {
     const numAuthors = 6;
     await init(numAuthors);
     [owner, user, notUser] = getAccounts();
-    truth = await deployTruthToken(ONE_HUNDRED_BILLION, owner);
-    bridge = await deployTruthBridge(truth, owner);
+    truth = await deployToken(owner);
+    bridge = await deployBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);
   });
 
@@ -120,7 +120,7 @@ describe('User Functions', async () => {
 
       it('attempting to lift more tokens than the T2 limit', async () => {
         const MAX_LIFT_AMOUNT = 2n ** 128n - 1n;
-        const hugeSupplyToken = await deployTruthToken(999999999999999999999999999999n, owner);
+        const hugeSupplyToken = await deployToken(owner, 999999999999999999999999999999n);
         await hugeSupplyToken.approve(bridge.address, MAX_LIFT_AMOUNT);
         await bridge.lift(hugeSupplyToken.address, t2PubKey, MAX_LIFT_AMOUNT);
         await hugeSupplyToken.approve(bridge.address, 1n);

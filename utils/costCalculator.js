@@ -1,6 +1,6 @@
 const addresses = require('./addresses.js');
 const network = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
-const REFUND_GAS_COST = addresses[network].usdc.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 79690 : 31180;
+const REFUND_GAS_COST = addresses[network].usdc.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 83760 : 32750;
 const TX_PER_REFUND = 20;
 const REFUND_CONTRIBUTION = parseInt(REFUND_GAS_COST / TX_PER_REFUND);
 const DUMMY_GAS_COST = 1n;
@@ -28,14 +28,14 @@ async function calculateCosts(bridge, relayer, method, args, maxGas) {
     'latest'
   ]);
   gas += 24;
-  const gasCost = parseInt((gas + REFUND_CONTRIBUTION) * 1.005); // 0.5% buffer
+  const gasCost = parseInt((gas + REFUND_CONTRIBUTION) * 1.0075); // 0.75% buffer
   const { baseFeePerGas } = await ethers.provider.getBlock('latest');
   const baseFee = parseInt(baseFeePerGas);
   const effectiveGasPrice = baseFee + maxPriorityFeePerGas > maxFeePerGas ? maxFeePerGas : baseFee + maxPriorityFeePerGas;
   const usdcEth = parseInt(await bridge.usdcEth());
   const estimatedCost = parseInt((gasCost * effectiveGasPrice) / usdcEth);
 
-  return { gasEstimate: gas, gasCost, gasLimit, refundGas: REFUND_CONTRIBUTION, triggerRefund, txCostEstimate: estimatedCost };
+  return { gasEstimate: gas, gasCost, gasLimit, refundGas: REFUND_GAS_COST, triggerRefund, txCostEstimate: estimatedCost };
 }
 
 module.exports = { costLift, costLower };

@@ -127,7 +127,7 @@ async function main() {
 
     const auxGas = gasCost - gasEstimate;
     const gasDiff = triggerRefund === true ? gasEstimate + refundGas - actualGas : gasEstimate - actualGas;
-    const gasOkay = Math.abs(gasDiff) < 100;
+    const gasOkay = Math.abs(gasDiff) < 20;
     const costDiff = txCostEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;
     const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;

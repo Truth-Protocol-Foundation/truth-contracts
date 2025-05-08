@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
@@ -14,11 +14,11 @@ contract TruthToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, 
   }
 
   function initialize(string calldata name, string calldata symbol_, uint256 supply, address owner_) public initializer {
+    __ERC20_init(name, symbol_);
+    __ERC20Permit_init(name);
     __Ownable_init(owner_);
     __Ownable2Step_init();
     __UUPSUpgradeable_init();
-    __ERC20_init(name, symbol_);
-    __ERC20Permit_init(name);
     _mint(owner_, supply * 10 ** decimals());
   }
 

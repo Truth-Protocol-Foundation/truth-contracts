@@ -1,6 +1,6 @@
 const addresses = require('./addresses.js');
 const network = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
-const REFUND_GAS_COST = addresses[network].usdc.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 79770 : 31340;
+const REFUND_GAS_COST = addresses[network].usdc.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 79690 : 31180;
 const TX_PER_REFUND = 20;
 const REFUND_CONTRIBUTION = parseInt(REFUND_GAS_COST / TX_PER_REFUND);
 const DUMMY_GAS_COST = 1n;
@@ -23,10 +23,11 @@ async function calculateCosts(bridge, relayer, method, args, maxGas) {
   const maxPriorityFeePerGas = parseInt(feeData.maxPriorityFeePerGas);
   maxGas += triggerRefund ? REFUND_GAS_COST : 0;
   const gasLimit = parseInt(maxGas * 1.3);
-  const { gas } = await ethers.provider.send('debug_traceCall', [
+  let { gas } = await ethers.provider.send('debug_traceCall', [
     { to: bridge.address, data, from: relayer.address, maxFeePerGas, maxPriorityFeePerGas, gasLimit },
     'latest'
   ]);
+  gas += 24;
   const gasCost = parseInt((gas + REFUND_CONTRIBUTION) * 1.005); // 0.5% buffer
   const { baseFeePerGas } = await ethers.provider.getBlock('latest');
   const baseFee = parseInt(baseFeePerGas);

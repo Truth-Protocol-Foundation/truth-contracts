@@ -17,6 +17,7 @@ const EXPIRY_WINDOW = 60;
 const MIN_AUTHORS = 4;
 const ONE_HUNDRED_BILLION = 100000000000n;
 const ONE_USDC = 1000000n;
+const SANCTIONED_ADDRESS = '0x7F367cC41522cE07553e823bf3be79A889DEbe1B';
 
 let additionalTx = [];
 let accounts = [];
@@ -221,6 +222,8 @@ async function init(numAuthors, largeTree = false) {
     accounts.push(account);
   }
 
+  await owner.sendTransaction({ to: SANCTIONED_ADDRESS, value: ethers.parseEther('1'), maxFeePerGas, maxPriorityFeePerGas });
+
   usdc = new ethers.Contract(addresses[network].usdc, require(`../abi/USDC.js`), ethers.provider);
   usdc.address = await usdc.getAddress();
   usdc.holder = USDC_HOLDER[network];
@@ -234,6 +237,7 @@ async function init(numAuthors, largeTree = false) {
 
 function printErrorCodes() {
   [
+    'AddressBlocked(address)',
     'AddressMismatch()',
     'AlreadyAdded()',
     'AmountTooLow()',
@@ -348,14 +352,17 @@ module.exports = {
   getValidExpiry,
   getWETH: () => weth,
   increaseBlockTimestamp,
+  impersonateAccount,
   init,
   MIN_AUTHORS,
   ONE_USDC,
   randomBytes32,
   randomHex,
   randomT2TxId,
+  SANCTIONED_ADDRESS,
   sendUSDC,
   setupRelayerToken,
+  stopImpersonatingAccount,
   strip_0x,
   toAuthorAccount,
   ZERO_ADDRESS

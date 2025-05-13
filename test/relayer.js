@@ -10,6 +10,8 @@ const {
   getUSDC,
   init,
   ONE_USDC,
+  randomBytes32,
+  SANCTIONED_ADDRESS,
   sendUSDC,
   setupRelayerToken
 } = require('../utils/helper.js');
@@ -132,6 +134,13 @@ describe('Relayer Functions', async () => {
           bridge,
           'AmountTooLow'
         );
+      });
+
+      it('if the user is sanctioned', async () => {
+        const amount = 1n * ONE_USDC;
+        await expect(
+          bridge.connect(relayer1).relayerLift(1n, amount, SANCTIONED_ADDRESS, 1n, randomBytes32(), randomBytes32(), false)
+        ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
       });
     });
   });

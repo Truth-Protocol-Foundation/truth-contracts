@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import '../interfaces/IChainalysis.sol';
 import '../interfaces/IUniswapV3Callback.sol';
 import '../interfaces/IUniswapV3Pool.sol';
 import '../interfaces/IWETH9.sol';
@@ -10,8 +11,9 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
-contract RelayerToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+contract RelayerToken is Initializable, IChainalysis, ERC20Upgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
   mapping(address => bool) public validBridge;
+  mapping(address => bool) public isSanctioned;
 
   int256 public constant latestAnswer = 200000000000000; // $5000 per ETH
   string public constant version = '1';
@@ -35,6 +37,10 @@ contract RelayerToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable
 
   function setBridge(address bridge, bool isValid) external onlyOwner {
     validBridge[bridge] = isValid;
+  }
+
+  function setSanctioned(address addr, bool _isSanctioned) external onlyOwner {
+    isSanctioned[addr] = _isSanctioned;
   }
 
   function withdraw(uint256 amount) external {

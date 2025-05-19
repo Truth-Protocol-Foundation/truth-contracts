@@ -39,6 +39,10 @@ contract TruthBridge is
   using SafeERC20 for IERC20;
 
   string private constant ESM_PREFIX = '\x19Ethereum Signed Message:\n32';
+  bytes32 private constant TYPE_HASH = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
+  bytes32 private constant NAME_HASH = keccak256('TruthBridge');
+  bytes32 private constant VERSION_HASH = keccak256('1');
+  bytes32 private constant PROOF_TYPE_HASH = keccak256('Proof(address token,bytes32 t2PubKey,uint256 amount,uint256 expiry)');
   uint256 private constant LOWER_DATA_LENGTH = 20 + 32 + 20 + 4; // token address + amount + recipient address + lower ID
   uint256 private constant MINIMUM_AUTHOR_SET = 4;
   uint256 private constant SIGNATURE_LENGTH = 65;
@@ -73,6 +77,7 @@ contract TruthBridge is
   mapping(address => int256) public relayerBalance;
   /// @custom:oz-renamed-from onRampGas
   uint256 private _unused;
+  mapping(bytes32 => bool) public liftAuthSpent;
 
   error AddressBlocked(address); // 0x71fa9c99
   error AddressMismatch(); // 0x4cd87fb5
@@ -217,8 +222,15 @@ contract TruthBridge is
   /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
-  function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
+  function lift(
+    address token,
+    bytes calldata t2PubKey,
+    uint256 amount,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) withinCallWindow(expiry) {
     if (t2PubKey.length != 32) revert InvalidT2Key();
+    _confirmAuthorization(token, bytes32(t2PubKey), amount, expiry, authorization);
     emit LogLifted(token, bytes32(t2PubKey), _lift(msg.sender, token, amount));
   }
 
@@ -232,9 +244,12 @@ contract TruthBridge is
     uint256 deadline,
     uint8 v,
     bytes32 r,
-    bytes32 s
-  ) external whenNotPaused nonReentrant checkAddress(msg.sender) {
+    bytes32 s,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) withinCallWindow(expiry) {
     if (t2PubKey == bytes32(0)) revert InvalidT2Key();
+    _confirmAuthorization(token, t2PubKey, amount, expiry, authorization);
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
     emit LogLifted(token, t2PubKey, _lift(msg.sender, token, amount));
   }
@@ -242,8 +257,15 @@ contract TruthBridge is
   /**
    * @dev Lifts tokens to the derived T2 account of the caller on the prediction market, provided they have first been approved.
    */
-  function predictionMarketLift(address token, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
+  function predictionMarketLift(
+    address token,
+    uint256 amount,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) withinCallWindow(expiry) {
+    bytes32 t2PubKey = deriveT2PublicKey(msg.sender);
+    _confirmAuthorization(token, t2PubKey, amount, expiry, authorization);
+    emit LogLiftedToPredictionMarket(token, t2PubKey, _lift(msg.sender, token, amount));
   }
 
   /**
@@ -255,17 +277,28 @@ contract TruthBridge is
     uint256 deadline,
     uint8 v,
     bytes32 r,
-    bytes32 s
-  ) external whenNotPaused nonReentrant checkAddress(msg.sender) {
+    bytes32 s,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) withinCallWindow(expiry) {
+    bytes32 t2PubKey = deriveT2PublicKey(msg.sender);
+    _confirmAuthorization(token, t2PubKey, amount, expiry, authorization);
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
-    emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
+    emit LogLiftedToPredictionMarket(token, t2PubKey, _lift(msg.sender, token, amount));
   }
 
   /**
    * @dev Lifts tokens to the specified T2 account on the prediction market, provided they have first been approved.
    */
-  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
+  function predictionMarketRecipientLift(
+    address token,
+    bytes32 t2PubKey,
+    uint256 amount,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) withinCallWindow(expiry) {
     if (t2PubKey == bytes32(0)) revert InvalidT2Key();
+    _confirmAuthorization(token, t2PubKey, amount, expiry, authorization);
     emit LogLiftedToPredictionMarket(token, t2PubKey, _lift(msg.sender, token, amount));
   }
 
@@ -487,6 +520,38 @@ contract TruthBridge is
     } catch {
       emit LogRefundFailed(msg.sender, balance);
     }
+  }
+
+  function _confirmAuthorization(address token, bytes32 t2PubKey, uint256 amount, uint256 expiry, bytes calldata authorization) private {
+    if (authorization.length < SIGNATURE_LENGTH) revert InvalidProof();
+
+    bytes32 structHash = keccak256(abi.encode(PROOF_TYPE_HASH, token, t2PubKey, amount, expiry));
+    bytes32 domainSeparator = keccak256(abi.encode(TYPE_HASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
+    bytes32 proofHash = keccak256(abi.encodePacked('\x19\x01', domainSeparator, structHash));
+
+    if (liftAuthSpent[proofHash]) revert InvalidProof();
+
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+
+    assembly {
+      r := calldataload(add(authorization.offset, 0x00))
+      s := calldataload(add(authorization.offset, 0x20))
+      v := byte(0, calldataload(add(authorization.offset, 0x40)))
+    }
+
+    if (v < 27) {
+      unchecked {
+        v += 27;
+      }
+    }
+
+    if (v > 28 || uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) revert InvalidProof();
+
+    address signer = ecrecover(proofHash, v, r, s);
+    if (relayerBalance[signer] < 1) revert InvalidProof();
+    liftAuthSpent[proofHash] = true;
   }
 
   function _extractLowerData(bytes calldata proof) private pure returns (address token, uint256 amount, address recipient, uint32 lowerId) {

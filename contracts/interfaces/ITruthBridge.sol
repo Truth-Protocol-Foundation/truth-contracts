@@ -16,11 +16,30 @@ interface ITruthBridge {
   function addAuthor(bytes calldata t1PubKey, bytes32 t2PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function removeAuthor(bytes32 t2PubKey, bytes calldata t1PubKey, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
   function publishRoot(bytes32 rootHash, uint256 expiry, uint32 t2TxId, bytes calldata confirmations) external;
-  function lift(address token, bytes calldata t2PubKey, uint256 amount) external;
-  function permitLift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
-  function predictionMarketLift(address token, uint256 amount) external;
-  function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
-  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external;
+  function lift(address token, bytes calldata t2PubKey, uint256 amount, uint256 expiry, bytes calldata authorization) external;
+  function permitLift(
+    address token,
+    bytes32 t2PubKey,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external;
+  function predictionMarketLift(address token, uint256 amount, uint256 expiry, bytes calldata authorization) external;
+  function predictionMarketPermitLift(
+    address token,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s,
+    uint256 expiry,
+    bytes calldata authorization
+  ) external;
+  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount, uint256 expiry, bytes calldata authorization) external;
   function registerRelayer(address relayer) external;
   function deregisterRelayer(address relayer) external;
   function relayerLift(uint256 gasCost, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool triggerRefund) external;

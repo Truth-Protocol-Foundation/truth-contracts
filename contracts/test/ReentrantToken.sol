@@ -19,11 +19,13 @@ contract ReentrantToken is ERC20 {
   ITruthBridge private _bridge;
 
   bytes private _proof;
+  bytes private _authorisation;
   address private _token;
   bytes private _t2PubKeyBytes;
   bytes32 private _t2PubKey;
   uint256 private _amount;
   uint256 private _deadline;
+  uint256 private _expiry;
   uint8 private _v;
   bytes32 private _r;
   bytes32 private _s;
@@ -46,10 +48,12 @@ contract ReentrantToken is ERC20 {
 
   function _attemptReentry() private {
     if (_reentryPoint == ReentryPoint.ClaimLower) _bridge.claimLower(_proof);
-    else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKeyBytes, _amount);
-    else if (_reentryPoint == ReentryPoint.PermitLift) _bridge.permitLift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s);
-    else if (_reentryPoint == ReentryPoint.PredictionMarketLift) _bridge.predictionMarketLift(_token, _amount);
-    else if (_reentryPoint == ReentryPoint.PredictionMarketPermitLift) _bridge.predictionMarketPermitLift(_token, _amount, _deadline, _v, _r, _s);
-    else if (_reentryPoint == ReentryPoint.PredictionMarketRecipientLift) _bridge.predictionMarketRecipientLift(_token, _t2PubKey, _amount);
+    else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKeyBytes, _amount, _expiry, _authorisation);
+    else if (_reentryPoint == ReentryPoint.PermitLift) _bridge.permitLift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s, _expiry, _authorisation);
+    else if (_reentryPoint == ReentryPoint.PredictionMarketLift) _bridge.predictionMarketLift(_token, _amount, _expiry, _authorisation);
+    else if (_reentryPoint == ReentryPoint.PredictionMarketPermitLift)
+      _bridge.predictionMarketPermitLift(_token, _amount, _deadline, _v, _r, _s, _expiry, _authorisation);
+    else if (_reentryPoint == ReentryPoint.PredictionMarketRecipientLift)
+      _bridge.predictionMarketRecipientLift(_token, _t2PubKey, _amount, _expiry, _authorisation);
   }
 }

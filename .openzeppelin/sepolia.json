@@ -314,9 +314,9 @@
         "0xbccB8DdDBbDe67Eb258C032d7A7A069780596101"
       ]
     },
-    "85d94d1a31fe5f78b72274c29ba552413900bcba01b5fcbb5720010a4103b0fa": {
-      "address": "0xc9b38906c87b5C8B5f76EAdbD2FBbd459A290e85",
-      "txHash": "0x17f2f884c5a2d610ff148002ccc6dddca1f5c4a077e1c0e24e949718457d839f",
+    "54fadd1c50b0c0e424cb2c7c3684c444709ff21c02d09f5dcafb93d00b6aca79": {
+      "address": "0xbfD92D644C18576119f3f155155CF0510d4081a7",
+      "txHash": "0x712e660e9d34c7f59327f2e3f9dcf60616baca7dff4cc34806a20ce056331d26",
       "layout": {
         "solcVersion": "0.8.30",
         "storage": [
@@ -326,7 +326,7 @@
             "slot": "0",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:57"
+            "src": "contracts\\TruthBridge.sol:59"
           },
           {
             "label": "authorIsActive",
@@ -334,7 +334,7 @@
             "slot": "1",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:58"
+            "src": "contracts\\TruthBridge.sol:60"
           },
           {
             "label": "t1AddressToId",
@@ -342,7 +342,7 @@
             "slot": "2",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:59"
+            "src": "contracts\\TruthBridge.sol:61"
           },
           {
             "label": "t2PubKeyToId",
@@ -350,7 +350,7 @@
             "slot": "3",
             "type": "t_mapping(t_bytes32,t_uint256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:60"
+            "src": "contracts\\TruthBridge.sol:62"
           },
           {
             "label": "idToT1Address",
@@ -358,7 +358,7 @@
             "slot": "4",
             "type": "t_mapping(t_uint256,t_address)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:61"
+            "src": "contracts\\TruthBridge.sol:63"
           },
           {
             "label": "idToT2PubKey",
@@ -366,7 +366,7 @@
             "slot": "5",
             "type": "t_mapping(t_uint256,t_bytes32)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:62"
+            "src": "contracts\\TruthBridge.sol:64"
           },
           {
             "label": "isPublishedRootHash",
@@ -374,7 +374,7 @@
             "slot": "6",
             "type": "t_mapping(t_bytes32,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:63"
+            "src": "contracts\\TruthBridge.sol:65"
           },
           {
             "label": "isUsedT2TxId",
@@ -382,7 +382,7 @@
             "slot": "7",
             "type": "t_mapping(t_uint256,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:64"
+            "src": "contracts\\TruthBridge.sol:66"
           },
           {
             "label": "hasLowered",
@@ -390,7 +390,7 @@
             "slot": "8",
             "type": "t_mapping(t_bytes32,t_bool)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:65"
+            "src": "contracts\\TruthBridge.sol:67"
           },
           {
             "label": "numActiveAuthors",
@@ -398,7 +398,7 @@
             "slot": "9",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:66"
+            "src": "contracts\\TruthBridge.sol:68"
           },
           {
             "label": "nextAuthorId",
@@ -406,7 +406,7 @@
             "slot": "10",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:67"
+            "src": "contracts\\TruthBridge.sol:69"
           },
           {
             "label": "truth",
@@ -414,7 +414,7 @@
             "slot": "11",
             "type": "t_address",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:68"
+            "src": "contracts\\TruthBridge.sol:70"
           },
           {
             "label": "relayerBalance",
@@ -422,7 +422,7 @@
             "slot": "12",
             "type": "t_mapping(t_address,t_int256)",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:71"
+            "src": "contracts\\TruthBridge.sol:73"
           },
           {
             "label": "_unused",
@@ -430,7 +430,7 @@
             "slot": "13",
             "type": "t_uint256",
             "contract": "TruthBridge",
-            "src": "contracts\\TruthBridge.sol:73",
+            "src": "contracts\\TruthBridge.sol:75",
             "renamedFrom": "onRampGas"
           }
         ],
@@ -616,7 +616,7 @@
         }
       },
       "allAddresses": [
-        "0xc9b38906c87b5C8B5f76EAdbD2FBbd459A290e85"
+        "0xbfD92D644C18576119f3f155155CF0510d4081a7"
       ]
     }
   }

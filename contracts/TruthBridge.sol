@@ -13,6 +13,7 @@ pragma solidity 0.8.30;
  */
 
 import './interfaces/ITruthBridge.sol';
+import './interfaces/IChainalysis.sol';
 import './interfaces/IChainlinkV3Aggregator.sol';
 import './interfaces/IUniswapV3Callback.sol';
 import './interfaces/IUniswapV3Pool.sol';
@@ -52,6 +53,7 @@ contract TruthBridge is
   address private constant pool = 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640;
   address private constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
   address private constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+  address private constant sanctions = 0x40C57923924B5c5c5455c48D93317139ADDaC8fb;
 
   // Authors
   mapping(uint256 => bool) public isAuthor;
@@ -72,6 +74,7 @@ contract TruthBridge is
   /// @custom:oz-renamed-from onRampGas
   uint256 private _unused;
 
+  error AddressBlocked(address); // 0x71fa9c99
   error AddressMismatch(); // 0x4cd87fb5
   error AlreadyAdded(); // 0xf411c327
   error AmountTooLow(); // 0x1fbaba35
@@ -100,6 +103,11 @@ contract TruthBridge is
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
+  }
+
+  modifier checkAddress(address _address) {
+    if (IChainalysis(sanctions).isSanctioned(_address)) revert AddressBlocked(_address);
+    _;
   }
 
   modifier withinCallWindow(uint256 expiry) {
@@ -209,7 +217,7 @@ contract TruthBridge is
   /**
    * @dev Enables the caller to lift an amount of ERC20 tokens to the specified T2 recipient, provided they have first been approved.
    */
-  function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
+  function lift(address token, bytes calldata t2PubKey, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
     if (t2PubKey.length != 32) revert InvalidT2Key();
     emit LogLifted(token, bytes32(t2PubKey), _lift(msg.sender, token, amount));
   }
@@ -217,7 +225,15 @@ contract TruthBridge is
   /**
    * @dev lift variant accepting an ERC-2612 permit in place of prior token approval.
    */
-  function permitLift(address token, bytes32 t2PubKey, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+  function permitLift(
+    address token,
+    bytes32 t2PubKey,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) {
     if (t2PubKey == bytes32(0)) revert InvalidT2Key();
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
     emit LogLifted(token, t2PubKey, _lift(msg.sender, token, amount));
@@ -226,14 +242,21 @@ contract TruthBridge is
   /**
    * @dev Lifts tokens to the derived T2 account of the caller on the prediction market, provided they have first been approved.
    */
-  function predictionMarketLift(address token, uint256 amount) external whenNotPaused nonReentrant {
+  function predictionMarketLift(address token, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
   }
 
   /**
    * @dev Prediction market lift variant accepting an ERC-2612 permit in place of prior approval.
    */
-  function predictionMarketPermitLift(address token, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external whenNotPaused nonReentrant {
+  function predictionMarketPermitLift(
+    address token,
+    uint256 amount,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external whenNotPaused nonReentrant checkAddress(msg.sender) {
     IERC20Permit(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
     emit LogLiftedToPredictionMarket(token, deriveT2PublicKey(msg.sender), _lift(msg.sender, token, amount));
   }
@@ -241,7 +264,7 @@ contract TruthBridge is
   /**
    * @dev Lifts tokens to the specified T2 account on the prediction market, provided they have first been approved.
    */
-  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant {
+  function predictionMarketRecipientLift(address token, bytes32 t2PubKey, uint256 amount) external whenNotPaused nonReentrant checkAddress(msg.sender) {
     if (t2PubKey == bytes32(0)) revert InvalidT2Key();
     emit LogLiftedToPredictionMarket(token, t2PubKey, _lift(msg.sender, token, amount));
   }
@@ -270,7 +293,7 @@ contract TruthBridge is
   /**
    * @dev Enables a relayer to lift USDC to the prediciton market on behalf of a user and extract the tx cost from the USDC
    */
-  function relayerLift(uint256 gasCost, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool triggerRefund) external {
+  function relayerLift(uint256 gasCost, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool triggerRefund) external checkAddress(user) {
     int256 balance = relayerBalance[msg.sender];
     if (balance < 1) revert RelayerOnly();
 
@@ -439,6 +462,43 @@ contract TruthBridge is
 
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
+  function _activateAuthor(uint256 id) private {
+    authorIsActive[id] = true;
+    unchecked {
+      ++numActiveAuthors;
+    }
+  }
+
+  function _addNewAuthor(address t1Address, bytes32 t2PubKey) private returns (uint256 id) {
+    unchecked {
+      id = nextAuthorId++;
+    }
+    if (t2PubKeyToId[t2PubKey] != 0) revert T2KeyInUse(t2PubKey);
+    idToT1Address[id] = t1Address;
+    idToT2PubKey[id] = t2PubKey;
+    t1AddressToId[t1Address] = id;
+    t2PubKeyToId[t2PubKey] = id;
+    isAuthor[id] = true;
+  }
+
+  function _attemptRelayerRefund(int256 balance) private {
+    try this.__refundRelayer(msg.sender, balance - 1) {
+      relayerBalance[msg.sender] = 1; // reset to trace balance on success
+    } catch {
+      emit LogRefundFailed(msg.sender, balance);
+    }
+  }
+
+  function _extractLowerData(bytes calldata proof) private pure returns (address token, uint256 amount, address recipient, uint32 lowerId) {
+    if (proof.length < MINIMUM_PROOF_LENGTH) revert InvalidProof();
+    assembly {
+      token := shr(96, calldataload(proof.offset))
+      amount := calldataload(add(proof.offset, 20))
+      recipient := shr(96, calldataload(add(proof.offset, 52)))
+      lowerId := shr(224, calldataload(add(proof.offset, 72)))
+    }
+  }
+
   function _initialiseAuthors(
     address[] calldata t1Addresses,
     bytes32[] calldata t1PubKeysLHS,
@@ -463,35 +523,6 @@ contract TruthBridge is
         ++i;
       }
     } while (i < numAuth);
-  }
-
-  function _addNewAuthor(address t1Address, bytes32 t2PubKey) private returns (uint256 id) {
-    unchecked {
-      id = nextAuthorId++;
-    }
-    if (t2PubKeyToId[t2PubKey] != 0) revert T2KeyInUse(t2PubKey);
-    idToT1Address[id] = t1Address;
-    idToT2PubKey[id] = t2PubKey;
-    t1AddressToId[t1Address] = id;
-    t2PubKeyToId[t2PubKey] = id;
-    isAuthor[id] = true;
-  }
-
-  function _activateAuthor(uint256 id) private {
-    authorIsActive[id] = true;
-    unchecked {
-      ++numActiveAuthors;
-    }
-  }
-
-  function _extractLowerData(bytes calldata proof) private pure returns (address token, uint256 amount, address recipient, uint32 lowerId) {
-    if (proof.length < MINIMUM_PROOF_LENGTH) revert InvalidProof();
-    assembly {
-      token := shr(96, calldataload(proof.offset))
-      amount := calldataload(add(proof.offset, 20))
-      recipient := shr(96, calldataload(add(proof.offset, 52)))
-      lowerId := shr(224, calldataload(add(proof.offset, 72)))
-    }
   }
 
   function _lift(address lifter, address token, uint256 amount) private returns (uint256) {
@@ -529,14 +560,6 @@ contract TruthBridge is
     }
 
     id = v < 29 && uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0 ? t1AddressToId[ecrecover(prefixedMsgHash, v, r, s)] : 0;
-  }
-
-  function _attemptRelayerRefund(int256 balance) private {
-    try this.__refundRelayer(msg.sender, balance - 1) {
-      relayerBalance[msg.sender] = 1; // reset to trace balance on success
-    } catch {
-      emit LogRefundFailed(msg.sender, balance);
-    }
   }
 
   function __refundRelayer(address relayer, int256 balance) external {

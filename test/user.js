@@ -9,8 +9,11 @@ const {
   getAccounts,
   getNumRequiredConfirmations,
   getPermit,
+  impersonateAccount,
   init,
   randomBytes32,
+  SANCTIONED_ADDRESS,
+  stopImpersonatingAccount,
   ZERO_ADDRESS
 } = require('../utils/helper.js');
 
@@ -148,6 +151,30 @@ describe('User Functions', async () => {
           'EnforcedPause'
         );
         await bridge.unpause();
+      });
+
+      it('when a sanctioned address attempts to lift', async () => {
+        await impersonateAccount(SANCTIONED_ADDRESS);
+        const sanctioned = await ethers.getSigner(SANCTIONED_ADDRESS);
+        await expect(bridge.connect(sanctioned).lift(truth.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        await expect(
+          bridge.connect(sanctioned).permitLift(truth.address, t2PubKey, amount, 1n, 1n, randomBytes32(), randomBytes32())
+        ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        await stopImpersonatingAccount(SANCTIONED_ADDRESS);
+      });
+
+      it('when a sanctioned address attempts to lift to the prediction market', async () => {
+        await impersonateAccount(SANCTIONED_ADDRESS);
+        const sanctioned = await ethers.getSigner(SANCTIONED_ADDRESS);
+        await expect(bridge.connect(sanctioned).predictionMarketLift(truth.address, amount)).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        await expect(bridge.connect(sanctioned).predictionMarketRecipientLift(truth.address, t2PubKey, amount)).to.be.revertedWithCustomError(
+          bridge,
+          'AddressBlocked'
+        );
+        await expect(
+          bridge.connect(sanctioned).predictionMarketPermitLift(truth.address, amount, 1n, 1n, randomBytes32(), randomBytes32())
+        ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        await stopImpersonatingAccount(SANCTIONED_ADDRESS);
       });
 
       it('attempting to lift more tokens than are approved', async () => {

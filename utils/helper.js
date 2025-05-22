@@ -162,7 +162,7 @@ async function getLiftAuthorization(relayer, bridge, { token, t2PubKey, amount, 
   };
 
   const types = {
-    AuthorizationProof: [
+    Authorization: [
       { name: 'token', type: 'address' },
       { name: 't2PubKey', type: 'bytes32' },
       { name: 'amount', type: 'uint256' },

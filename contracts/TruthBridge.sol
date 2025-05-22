@@ -42,7 +42,7 @@ contract TruthBridge is
   bytes32 private constant NAME_HASH = keccak256('TruthBridge');
   bytes32 private constant VERSION_HASH = keccak256('1');
   bytes32 private constant DOMAIN_TYPE_HASH = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
-  bytes32 private constant AUTH_PROOF_TYPE_HASH = keccak256('AuthorizationProof(address token,bytes32 t2PubKey,uint256 amount,uint256 expiry)');
+  bytes32 private constant AUTHORIZATION_TYPE_HASH = keccak256('Authorization(address token,bytes32 t2PubKey,uint256 amount,uint256 expiry)');
   uint256 private constant LOWER_DATA_LENGTH = 20 + 32 + 20 + 4; // token address + amount + recipient address + lower ID
   uint256 private constant MINIMUM_AUTHOR_SET = 4;
   uint256 private constant SIGNATURE_LENGTH = 65;
@@ -525,7 +525,7 @@ contract TruthBridge is
   function _confirmAuthorization(address token, bytes32 t2PubKey, uint256 amount, uint256 expiry, bytes calldata authorization) private {
     if (authorization.length != SIGNATURE_LENGTH) revert InvalidProof();
 
-    bytes32 structHash = keccak256(abi.encode(AUTH_PROOF_TYPE_HASH, token, t2PubKey, amount, expiry));
+    bytes32 structHash = keccak256(abi.encode(AUTHORIZATION_TYPE_HASH, token, t2PubKey, amount, expiry));
     bytes32 proofHash = keccak256(abi.encodePacked('\x19\x01', _domainSeparator(), structHash));
 
     if (liftAuthSpent[proofHash]) revert InvalidProof();

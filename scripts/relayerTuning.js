@@ -22,7 +22,7 @@ const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
 const HEADER =
   'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
-const LOG_GAS = false;
+const LOG_GAS = true;
 
 async function main() {
   let bridge, truth, usdc, weth, swapHelper;

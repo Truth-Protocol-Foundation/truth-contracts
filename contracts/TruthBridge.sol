@@ -39,10 +39,10 @@ contract TruthBridge is
   using SafeERC20 for IERC20;
 
   string private constant ESM_PREFIX = '\x19Ethereum Signed Message:\n32';
-  bytes32 private constant TYPE_HASH = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
   bytes32 private constant NAME_HASH = keccak256('TruthBridge');
   bytes32 private constant VERSION_HASH = keccak256('1');
-  bytes32 private constant PROOF_TYPE_HASH = keccak256('Proof(address token,bytes32 t2PubKey,uint256 amount,uint256 expiry)');
+  bytes32 private constant DOMAIN_TYPE_HASH = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)');
+  bytes32 private constant AUTH_PROOF_TYPE_HASH = keccak256('AuthorizationProof(address token,bytes32 t2PubKey,uint256 amount,uint256 expiry)');
   uint256 private constant LOWER_DATA_LENGTH = 20 + 32 + 20 + 4; // token address + amount + recipient address + lower ID
   uint256 private constant MINIMUM_AUTHOR_SET = 4;
   uint256 private constant SIGNATURE_LENGTH = 65;
@@ -523,11 +523,10 @@ contract TruthBridge is
   }
 
   function _confirmAuthorization(address token, bytes32 t2PubKey, uint256 amount, uint256 expiry, bytes calldata authorization) private {
-    if (authorization.length < SIGNATURE_LENGTH) revert InvalidProof();
+    if (authorization.length != SIGNATURE_LENGTH) revert InvalidProof();
 
-    bytes32 structHash = keccak256(abi.encode(PROOF_TYPE_HASH, token, t2PubKey, amount, expiry));
-    bytes32 domainSeparator = keccak256(abi.encode(TYPE_HASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
-    bytes32 proofHash = keccak256(abi.encodePacked('\x19\x01', domainSeparator, structHash));
+    bytes32 structHash = keccak256(abi.encode(AUTH_PROOF_TYPE_HASH, token, t2PubKey, amount, expiry));
+    bytes32 proofHash = keccak256(abi.encodePacked('\x19\x01', _domainSeparator(), structHash));
 
     if (liftAuthSpent[proofHash]) revert InvalidProof();
 
@@ -536,7 +535,7 @@ contract TruthBridge is
     uint8 v;
 
     assembly {
-      r := calldataload(add(authorization.offset, 0x00))
+      r := calldataload(authorization.offset)
       s := calldataload(add(authorization.offset, 0x20))
       v := byte(0, calldataload(add(authorization.offset, 0x40)))
     }
@@ -552,6 +551,10 @@ contract TruthBridge is
     address signer = ecrecover(proofHash, v, r, s);
     if (relayerBalance[signer] < 1) revert InvalidProof();
     liftAuthSpent[proofHash] = true;
+  }
+
+  function _domainSeparator() private view returns (bytes32) {
+    return keccak256(abi.encode(DOMAIN_TYPE_HASH, NAME_HASH, VERSION_HASH, block.chainid, address(this)));
   }
 
   function _extractLowerData(bytes calldata proof) private pure returns (address token, uint256 amount, address recipient, uint32 lowerId) {

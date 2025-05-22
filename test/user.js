@@ -7,8 +7,10 @@ const {
   EMPTY_BYTES_32,
   expect,
   getAccounts,
+  getLiftAuthorization,
   getNumRequiredConfirmations,
   getPermit,
+  getValidExpiry,
   impersonateAccount,
   init,
   randomBytes32,
@@ -17,16 +19,17 @@ const {
   ZERO_ADDRESS
 } = require('../utils/helper.js');
 
-let bridge, truth, owner, user, notUser, t2PubKey;
+let bridge, truth, owner, user, relayer, t2PubKey;
 
 describe('User Functions', async () => {
   before(async () => {
     const numAuthors = 5;
     await init(numAuthors);
-    [owner, user, notUser] = getAccounts();
+    [owner, user, relayer] = getAccounts();
     truth = await deployToken(owner);
     bridge = await deployBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);
+    await bridge.registerRelayer(relayer.address);
   });
 
   context('Truth token', async () => {
@@ -56,21 +59,27 @@ describe('User Functions', async () => {
 
       it('in lifting tokens to the specified t2 public key', async () => {
         await truth.approve(bridge.address, amount);
-        await expect(bridge.lift(truth.address, t2PubKey, amount))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.lift(truth.address, t2PubKey, amount, expiry, authorization))
           .to.emit(bridge, 'LogLifted')
           .withArgs(truth.address, t2PubKey, amount);
       });
 
       it('in lifting tokens with a valid permit', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.permitLift(truth.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.permitLift(truth.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s, expiry, authorization))
           .to.emit(bridge, 'LogLifted')
           .withArgs(truth.address, t2PubKey, amount);
       });
 
       it('in lifting tokens to the prediction market and the t2 public key derived from the address of the sender', async () => {
         await truth.approve(bridge.address, amount);
-        await expect(bridge.predictionMarketLift(truth.address, amount))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.predictionMarketLift(truth.address, amount, expiry, authorization))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, t2PubKey, amount);
       });
@@ -78,14 +87,18 @@ describe('User Functions', async () => {
       it('in lifting tokens to the prediction market and the t2 public key specifed', async () => {
         const recipientT2PubKey = randomBytes32();
         await truth.approve(bridge.address, amount);
-        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey: recipientT2PubKey, amount, expiry });
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount, expiry, authorization))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, recipientT2PubKey, amount);
       });
 
       it('in lifting tokens to the prediction market with a valid permit', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s, expiry, authorization))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, t2PubKey, amount);
       });
@@ -93,7 +106,9 @@ describe('User Functions', async () => {
       it('in lifting tokens to the prediction market and the t2 public key specifed', async () => {
         const recipientT2PubKey = randomBytes32();
         await truth.approve(bridge.address, amount);
-        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount))
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey: recipientT2PubKey, amount, expiry });
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount, expiry, authorization))
           .to.emit(bridge, 'LogLiftedToPredictionMarket')
           .withArgs(truth.address, recipientT2PubKey, amount);
       });
@@ -102,40 +117,53 @@ describe('User Functions', async () => {
     context('fails when', async () => {
       it('attempting to lift 0 tokens', async () => {
         await truth.approve(bridge.address, 0n);
-        await expect(bridge.lift(truth.address, t2PubKey, 0n)).to.be.revertedWithCustomError(bridge, 'LiftFailed');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount: 0n, expiry });
+        await expect(bridge.lift(truth.address, t2PubKey, 0n, expiry, authorization)).to.be.revertedWithCustomError(bridge, 'LiftFailed');
       });
 
       it('attempting to lift tokens without supplying a T2 public key', async () => {
-        await expect(bridge.lift(truth.address, EMPTY_BYTES, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
-        await expect(bridge.predictionMarketRecipientLift(truth.address, EMPTY_BYTES_32, amount)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey: EMPTY_BYTES_32, amount, expiry });
+        await expect(bridge.lift(truth.address, EMPTY_BYTES, amount, expiry, authorization)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+        await expect(bridge.predictionMarketRecipientLift(truth.address, EMPTY_BYTES_32, amount, expiry, authorization)).to.be.revertedWithCustomError(
+          bridge,
+          'InvalidT2Key'
+        );
       });
 
       it('attempting to lift tokens with a permit but without supplying a T2 public key', async () => {
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.permitLift(truth.address, EMPTY_BYTES_32, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          bridge,
-          'InvalidT2Key'
-        );
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey: EMPTY_BYTES_32, amount, expiry });
+        await expect(
+          bridge.permitLift(truth.address, EMPTY_BYTES_32, amount, permit.deadline, permit.v, permit.r, permit.s, expiry, authorization)
+        ).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
       });
 
       it('attempting to lift more tokens than the T2 limit', async () => {
         const MAX_LIFT_AMOUNT = 2n ** 128n - 1n;
         const hugeSupplyToken = await deployToken(owner, 999999999999999999999999999999n);
         await hugeSupplyToken.approve(bridge.address, MAX_LIFT_AMOUNT);
-        await bridge.lift(hugeSupplyToken.address, t2PubKey, MAX_LIFT_AMOUNT);
+        let expiry = await getValidExpiry();
+        let authorization = await getLiftAuthorization(relayer, bridge, { token: hugeSupplyToken.address, t2PubKey, amount: MAX_LIFT_AMOUNT, expiry });
+        await bridge.lift(hugeSupplyToken.address, t2PubKey, MAX_LIFT_AMOUNT, expiry, authorization);
         await hugeSupplyToken.approve(bridge.address, 1n);
-        await expect(bridge.lift(hugeSupplyToken.address, t2PubKey, 1n)).to.be.revertedWithCustomError(bridge, 'LiftLimitHit');
+        expiry = await getValidExpiry();
+        authorization = await getLiftAuthorization(relayer, bridge, { token: hugeSupplyToken.address, t2PubKey, amount: 1n, expiry });
+        await expect(bridge.lift(hugeSupplyToken.address, t2PubKey, 1n, expiry, authorization)).to.be.revertedWithCustomError(bridge, 'LiftLimitHit');
       });
 
       it('attempting to lift tokens when the contract is paused', async () => {
         await bridge.pause();
         await truth.approve(bridge.address, amount);
-        await expect(bridge.lift(truth.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.lift(truth.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.permitLift(truth.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
-          bridge,
-          'EnforcedPause'
-        );
+        await expect(
+          bridge.permitLift(truth.address, t2PubKey, amount, permit.deadline, permit.v, permit.r, permit.s, expiry, authorization)
+        ).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         await bridge.unpause();
       });
 
@@ -143,22 +171,31 @@ describe('User Functions', async () => {
         const recipientT2PubKey = randomBytes32();
         await bridge.pause();
         await truth.approve(bridge.address, amount);
-        await expect(bridge.predictionMarketLift(truth.address, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
-        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
-        const permit = await getPermit(truth, owner, bridge, amount);
-        await expect(bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s)).to.be.revertedWithCustomError(
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey: recipientT2PubKey, amount, expiry });
+        await expect(bridge.predictionMarketLift(truth.address, amount, expiry, authorization)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
+        await expect(bridge.predictionMarketRecipientLift(truth.address, recipientT2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
           bridge,
           'EnforcedPause'
         );
+        const permit = await getPermit(truth, owner, bridge, amount);
+        await expect(
+          bridge.predictionMarketPermitLift(truth.address, amount, permit.deadline, permit.v, permit.r, permit.s, expiry, authorization)
+        ).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
         await bridge.unpause();
       });
 
       it('when a sanctioned address attempts to lift', async () => {
         await impersonateAccount(SANCTIONED_ADDRESS);
         const sanctioned = await ethers.getSigner(SANCTIONED_ADDRESS);
-        await expect(bridge.connect(sanctioned).lift(truth.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.connect(sanctioned).lift(truth.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+          bridge,
+          'AddressBlocked'
+        );
         await expect(
-          bridge.connect(sanctioned).permitLift(truth.address, t2PubKey, amount, 1n, 1n, randomBytes32(), randomBytes32())
+          bridge.connect(sanctioned).permitLift(truth.address, t2PubKey, amount, 1n, 1n, randomBytes32(), randomBytes32(), expiry, authorization)
         ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
         await stopImpersonatingAccount(SANCTIONED_ADDRESS);
       });
@@ -166,24 +203,39 @@ describe('User Functions', async () => {
       it('when a sanctioned address attempts to lift to the prediction market', async () => {
         await impersonateAccount(SANCTIONED_ADDRESS);
         const sanctioned = await ethers.getSigner(SANCTIONED_ADDRESS);
-        await expect(bridge.connect(sanctioned).predictionMarketLift(truth.address, amount)).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
-        await expect(bridge.connect(sanctioned).predictionMarketRecipientLift(truth.address, t2PubKey, amount)).to.be.revertedWithCustomError(
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await expect(bridge.connect(sanctioned).predictionMarketLift(truth.address, amount, expiry, authorization)).to.be.revertedWithCustomError(
           bridge,
           'AddressBlocked'
         );
         await expect(
-          bridge.connect(sanctioned).predictionMarketPermitLift(truth.address, amount, 1n, 1n, randomBytes32(), randomBytes32())
+          bridge.connect(sanctioned).predictionMarketRecipientLift(truth.address, t2PubKey, amount, expiry, authorization)
+        ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
+        await expect(
+          bridge.connect(sanctioned).predictionMarketPermitLift(truth.address, amount, 1n, 1n, randomBytes32(), randomBytes32(), expiry, authorization)
         ).to.be.revertedWithCustomError(bridge, 'AddressBlocked');
         await stopImpersonatingAccount(SANCTIONED_ADDRESS);
       });
 
       it('attempting to lift more tokens than are approved', async () => {
+        const approvedAmount = 100n;
         await truth.approve(bridge.address, 100n);
-        await expect(bridge.lift(truth.address, t2PubKey, 200n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount: approvedAmount * 2n, expiry });
+        await expect(bridge.lift(truth.address, t2PubKey, approvedAmount * 2n, expiry, authorization)).to.be.revertedWithCustomError(
+          truth,
+          'ERC20InsufficientAllowance'
+        );
       });
 
       it('attempting to lift more tokens than the sender holds', async () => {
-        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n)).to.be.revertedWithCustomError(truth, 'ERC20InsufficientAllowance');
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount: 1n, expiry });
+        await expect(bridge.connect(user).lift(truth.address, t2PubKey, 1n, expiry, authorization)).to.be.revertedWithCustomError(
+          truth,
+          'ERC20InsufficientAllowance'
+        );
       });
     });
   });
@@ -194,7 +246,9 @@ describe('User Functions', async () => {
     context('succeeds', async () => {
       it('in lowering tokens to the recipient in the proof', async () => {
         await truth.approve(bridge.address, amount);
-        await bridge.lift(truth.address, t2PubKey, amount);
+        const expiry = await getValidExpiry();
+        const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount, expiry });
+        await bridge.lift(truth.address, t2PubKey, amount, expiry, authorization);
 
         const initialBridgeBalance = await truth.balanceOf(bridge.address);
         const initialSenderBalance = await truth.balanceOf(owner.address);
@@ -241,43 +295,63 @@ describe('User Functions', async () => {
       PredictionMarketRecipientLift: 5
     };
     const amount = 100n;
-    let reentrantToken;
+    let reentrantToken, expiry, authorization;
 
     before(async () => {
       const contract = await ethers.getContractFactory('ReentrantToken');
       reentrantToken = await contract.deploy(bridge.address);
       reentrantToken.address = await reentrantToken.getAddress();
       await reentrantToken.approve(bridge.address, amount * 5n);
+      expiry = await getValidExpiry();
+      authorization = await getLiftAuthorization(relayer, bridge, { token: reentrantToken.address, t2PubKey, amount, expiry });
     });
 
     it('the claimLower re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.ClaimLower);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
 
     it('the lift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.Lift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
 
     it('the permitLift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PermitLift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
 
     it('the predictionMarketLift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketLift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
 
     it('the predictionMarketPermitLift with permit re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketPermitLift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
 
     it('the predictionMarketRecipientLift re-entrancy check is triggered correctly', async () => {
       await reentrantToken.setReentryPoint(reentryPoint.PredictionMarketRecipientLift);
-      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount, expiry, authorization)).to.be.revertedWithCustomError(
+        bridge,
+        'ReentrancyGuardReentrantCall'
+      );
     });
   });
 
@@ -303,7 +377,9 @@ describe('User Functions', async () => {
     it('the expected result is returned for a valid, used proof', async () => {
       const lowerAmount = 456n;
       await truth.approve(bridge.address, lowerAmount);
-      await bridge.lift(truth.address, t2PubKey, lowerAmount);
+      const expiry = await getValidExpiry();
+      const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount: lowerAmount, expiry });
+      await bridge.lift(truth.address, t2PubKey, lowerAmount, expiry, authorization);
       const [lowerProof, expectedLowerId] = await createLowerProof(bridge, truth, lowerAmount, owner);
       await bridge.claimLower(lowerProof);
       const [token, amount, recipient, lowerId, confirmationsRequired, confirmationsProvided, proofIsValid, lowerIsClaimed] =
@@ -324,7 +400,9 @@ describe('User Functions', async () => {
     it('the expected result is returned for a valid proof with invalid confirmations', async () => {
       const lowerAmount = 789n;
       await truth.approve(bridge.address, lowerAmount);
-      await bridge.lift(truth.address, t2PubKey, lowerAmount);
+      const expiry = await getValidExpiry();
+      const authorization = await getLiftAuthorization(relayer, bridge, { token: truth.address, t2PubKey, amount: lowerAmount, expiry });
+      await bridge.lift(truth.address, t2PubKey, lowerAmount, expiry, authorization);
       const [proofA, lowerIdA] = await createLowerProof(bridge, truth, lowerAmount, owner);
       const [proofB] = await createLowerProof(bridge, truth, lowerAmount, owner);
       const confirmationsStart = 154;

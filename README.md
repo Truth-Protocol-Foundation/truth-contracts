@@ -28,14 +28,14 @@
 
 
 ## Lift Methods
-| Method                            | Approval Tx Required? | Callable By | T2 Account Specified As     |
-|-----------------------------------|-----------------------|-------------|-----------------------------|
-| **lift**                          | Yes                   | Lifter      | `bytes`                     |
-| **permitLift**                    | No                    | Lifter      | `bytes32`                   |
-| **predictionMarketLift**          | Yes                   | Lifter      | Derived from lifter address |
-| **predictionMarketPermitLift**    | No                    | Lifter      | Derived from lifter address |
-| **predictionMarketRecipientLift** | Yes                   | Lifter      | `bytes32`                   |
-| **relayerLift**                   | No                    | Relayer     | Derived from lifter address |
+| Method                            | Approval Tx Required? | Callable By | T2 Account Specified As     | Authorization Format |
+|-----------------------------------|-----------------------|-------------|-----------------------------|----------------------|
+| **lift**                          | Yes                   | Lifter      | `bytes`                     | Proof with expiry    |
+| **permitLift**                    | No                    | Lifter      | `bytes32`                   | Proof with expiry    |
+| **predictionMarketLift**          | Yes                   | Lifter      | Derived from lifter address | Proof with expiry    |
+| **predictionMarketPermitLift**    | No                    | Lifter      | Derived from lifter address | Proof with expiry    | 
+| **predictionMarketRecipientLift** | Yes                   | Lifter      | `bytes32`                   | Proof with expiry    |
+| **relayerLift**                   | No                    | Relayer     | Derived from lifter address | Implicit             |
 
 
 # Development

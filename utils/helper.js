@@ -13,7 +13,7 @@ const EMPTY_BYTES = '0x';
 const EMPTY_BYTES_32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LOWER_ID = '0x5702';
-const EXPIRY_WINDOW = 60;
+const EXPIRY_WINDOW = 60n;
 const MIN_AUTHORS = 4;
 const ONE_HUNDRED_BILLION = 100000000000n;
 const ONE_USDC = 1000000n;
@@ -150,7 +150,27 @@ function getTxLeafMetadata() {
 }
 
 async function getValidExpiry() {
-  return (await getCurrentBlockTimestamp()) + EXPIRY_WINDOW;
+  return ethers.toBigInt(await getCurrentBlockTimestamp()) + EXPIRY_WINDOW;
+}
+
+async function getLiftAuthorization(relayer, bridge, { token, t2PubKey, amount, expiry }) {
+  const domain = {
+    name: 'TruthBridge',
+    version: '1',
+    chainId: (await ethers.provider.getNetwork()).chainId,
+    verifyingContract: bridge.address
+  };
+
+  const types = {
+    Authorization: [
+      { name: 'token', type: 'address' },
+      { name: 't2PubKey', type: 'bytes32' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' }
+    ]
+  };
+
+  return await relayer.signTypedData(domain, types, { token, t2PubKey, amount, expiry });
 }
 
 async function getPermit(token, account, spender, amount, deadline) {
@@ -195,7 +215,7 @@ async function getPermit(token, account, spender, amount, deadline) {
 
 async function increaseBlockTimestamp(seconds) {
   const currentBlockTimestamp = await getCurrentBlockTimestamp();
-  await time.increaseTo(currentBlockTimestamp + seconds);
+  await time.increaseTo(currentBlockTimestamp + parseInt(seconds));
 }
 
 async function init(numAuthors, largeTree = false) {
@@ -345,6 +365,7 @@ module.exports = {
   getAuthors: () => authors,
   getConfirmations,
   getCurrentBlockTimestamp,
+  getLiftAuthorization,
   getNumRequiredConfirmations,
   getPermit,
   getSingleConfirmation,

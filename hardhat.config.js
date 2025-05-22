@@ -175,7 +175,8 @@ module.exports = {
             enabled: true,
             runs: 1000000,
             details: { yul: true }
-          }
+          },
+          viaIR: true
         }
       }
     ]

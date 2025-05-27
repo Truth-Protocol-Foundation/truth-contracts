@@ -17,13 +17,13 @@ const {
   ZERO_ADDRESS
 } = require('../utils/helper.js');
 
-let bridge, truth, owner, user, notUser, t2PubKey;
+let bridge, truth, owner, user, t2PubKey;
 
 describe('User Functions', async () => {
   before(async () => {
     const numAuthors = 5;
     await init(numAuthors);
-    [owner, user, notUser] = getAccounts();
+    [owner, user] = getAccounts();
     truth = await deployToken(owner);
     bridge = await deployBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);

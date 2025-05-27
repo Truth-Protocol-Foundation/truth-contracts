@@ -31,7 +31,7 @@ async function calculateCosts(method, provider, bridge, relayerAddress, innerArg
   let rawEstimate;
   try {
     rawEstimate = await provider.estimateGas(estimateTx);
-  } catch (e) {
+  } catch (_) {
     rawEstimate = 150000;
   }
 
@@ -64,3 +64,4 @@ async function calculateCosts(method, provider, bridge, relayerAddress, innerArg
 }
 
 module.exports = { costLift, costLower, refundGas };
+

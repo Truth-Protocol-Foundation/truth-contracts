@@ -1,4 +1,4 @@
-const { costLift, costLower } = require('../utils/costCalculator.js');
+const { costLift, costLower } = require('../utils/costsCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,

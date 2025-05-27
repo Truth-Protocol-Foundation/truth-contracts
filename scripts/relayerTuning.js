@@ -107,13 +107,8 @@ async function main() {
     await sendUSDC(user, amount);
     amount = Math.random() < 0.1 ? await usdc.balanceOf(user.address) : amount;
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-    const { args, costEstimate, gasEstimate, gasSettings } = await costLift(ethers.provider, bridge, relayer.address, [
-      amount,
-      user.address,
-      permit.v,
-      permit.r,
-      permit.s
-    ]);
+    const innerArgs = [amount, user.address, permit.v, permit.r, permit.s];
+    const { args, costEstimate, gasEstimate, gasSettings } = await costLift(ethers.provider, bridge, relayer.address, innerArgs);
     const gasCost = args[0];
     const triggerRefund = args[args.length - 1];
     const { gasLimit } = gasSettings;

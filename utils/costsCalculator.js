@@ -64,4 +64,3 @@ async function calculateCosts(method, provider, bridge, relayerAddress, innerArg
 }
 
 module.exports = { costLift, costLower, refundGas };
-

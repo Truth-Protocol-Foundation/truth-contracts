@@ -22,13 +22,24 @@ async function calculateCosts(method, provider, bridge, relayerAddress, innerArg
 
   const triggerRefund = Math.random() < 1 / TX_PER_REFUND;
 
-  const maxGas = triggerRefund ? 150000 + refundGas : 150000;
-  const gasLimit = Math.ceil(maxGas * 1.3);
-
-  const traceTx = {
+  const estimateTx = {
     to: bridge.address,
     data: bridge.interface.encodeFunctionData(method, [1n, ...innerArgs, false]),
-    from: relayerAddress,
+    from: relayerAddress
+  };
+
+  let rawEstimate;
+  try {
+    rawEstimate = await provider.estimateGas(estimateTx);
+  } catch (e) {
+    rawEstimate = 150000;
+  }
+
+  rawEstimate = Number(rawEstimate) + (triggerRefund ? refundGas : 0);
+  const gasLimit = Math.ceil(rawEstimate * 1.3);
+
+  const traceTx = {
+    ...estimateTx,
     maxFeePerGas: '0x' + maxFeePerGas.toString(16),
     maxPriorityFeePerGas: '0x' + maxPriorityFeePerGas.toString(16),
     gas: '0x' + gasLimit.toString(16)

@@ -21,7 +21,7 @@ const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
 const HEADER =
-  'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
+  'Method, Trigger Refund, Gas Estimate, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
 const LOG_GAS = true;
 
 async function main() {
@@ -74,7 +74,7 @@ async function main() {
       const user = users[Math.floor(Math.random() * users.length)];
       const amount = BigInt(Math.floor(Math.random() * (MAX_USDC_AMOUNT - MIN_USDC_AMOUNT * scale + 1) + MIN_USDC_AMOUNT * scale));
       const relayer = relayers[Math.floor(Math.random() * relayers.length)];
-      Math.random() < 0.6 ? await doRelayerLift(user, amount, relayer) : await doRelayerLower(user, amount, relayer);
+      Math.random() < 0.5 ? await doRelayerLift(user, amount, relayer) : await doRelayerLower(user, amount, relayer);
     }
 
     await completeRound(round);

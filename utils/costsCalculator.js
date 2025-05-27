@@ -1,7 +1,7 @@
 const addresses = require('./addresses.js');
 const network = hre.network.config.forking.url.includes('mainnet') ? 'mainnet' : 'sepolia';
 const USDC_ADDRESS = addresses[network].usdc;
-const refundGas = USDC_ADDRESS.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 83700 : 32750;
+const refundGas = USDC_ADDRESS.toLowerCase() === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' ? 83700 : 32820;
 const TX_PER_REFUND = 20;
 
 async function costLift(provider, bridge, relayerAddress, innerArgs) {

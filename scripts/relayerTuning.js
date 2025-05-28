@@ -1,4 +1,4 @@
-const { costLift, costLower, refundGas } = require('../utils/costsCalculator.js');
+const { costLift, costLower, relayerRefundGasUse } = require('../utils/costsCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -114,7 +114,7 @@ async function main() {
     const { gasLimit } = gasSettings;
     const tx = await bridge.connect(relayer).relayerLift(...args, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lift', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lift', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund);
   }
 
   async function doRelayerLower(user, amount, relayer) {
@@ -125,15 +125,15 @@ async function main() {
     const { gasLimit } = gasSettings;
     const tx = await bridge.connect(relayer).relayerLower(...args, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lower', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lower', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund);
   }
 
-  function logGas(method, actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund) {
+  function logGas(method, actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund) {
     actualCost = parseInt(actualCost);
     actualGas = parseInt(actualGas);
 
     const auxGas = gasCost - gasEstimate;
-    const gasDiff = triggerRefund === true ? gasEstimate + refundGas - actualGas : gasEstimate - actualGas;
+    const gasDiff = triggerRefund === true ? gasEstimate + relayerRefundGasUse - actualGas : gasEstimate - actualGas;
     const gasOkay = Math.abs(gasDiff) < 20;
     const costDiff = costEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;

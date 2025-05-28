@@ -1,4 +1,4 @@
-const { costLift, costLower } = require('../utils/costCalculator.js');
+const { costLift, costLower, relayerRefundGasUse } = require('../utils/costsCalculator.js');
 const {
   createLowerProof,
   deploySwapHelper,
@@ -21,8 +21,8 @@ const MIN_USDC_AMOUNT = Number(5n * ONE_USDC);
 const MAX_USDC_AMOUNT = Number(100n * ONE_USDC);
 const RELAYER_BASE_BALANCE = ethers.parseEther('0.33');
 const HEADER =
-  'Method, Trigger Refund, Method Gas, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
-const LOG_GAS = false;
+  'Method, Trigger Refund, Gas Estimate, Aux Gas, Actual Gas, Gas Limit, Gas Diff, Estimated Cost, Actual Cost, Cost Diff, Accurate Gas, Accurate Cost, USDC Cost';
+const LOG_GAS = true;
 
 async function main() {
   let bridge, truth, usdc, weth, swapHelper;
@@ -74,7 +74,7 @@ async function main() {
       const user = users[Math.floor(Math.random() * users.length)];
       const amount = BigInt(Math.floor(Math.random() * (MAX_USDC_AMOUNT - MIN_USDC_AMOUNT * scale + 1) + MIN_USDC_AMOUNT * scale));
       const relayer = relayers[Math.floor(Math.random() * relayers.length)];
-      Math.random() < 0.6 ? await doRelayerLift(user, amount, relayer) : await doRelayerLower(user, amount, relayer);
+      Math.random() < 0.5 ? await doRelayerLift(user, amount, relayer) : await doRelayerLower(user, amount, relayer);
     }
 
     await completeRound(round);
@@ -107,33 +107,40 @@ async function main() {
     await sendUSDC(user, amount);
     amount = Math.random() < 0.1 ? await usdc.balanceOf(user.address) : amount;
     const permit = await getPermit(usdc, user, bridge, amount, ethers.MaxUint256);
-    const { gasEstimate, gasCost, gasLimit, refundGas, triggerRefund, txCostEstimate } = await costLift(bridge, relayer, amount, permit, user);
-    const tx = await bridge.connect(relayer).relayerLift(gasCost, amount, user.address, permit.v, permit.r, permit.s, triggerRefund, { gasLimit });
+    const innerArgs = [amount, user.address, permit.v, permit.r, permit.s];
+    const { args, costEstimate, gasEstimate, gasSettings } = await costLift(ethers.provider, bridge, relayer.address, innerArgs);
+    const gasCost = args[0];
+    const triggerRefund = args[args.length - 1];
+    const { gasLimit } = gasSettings;
+    const tx = await bridge.connect(relayer).relayerLift(...args, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lift', actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lift', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund);
   }
 
   async function doRelayerLower(user, amount, relayer) {
     [lowerProof] = await createLowerProof(bridge, usdc, amount, user);
-    const { gasEstimate, gasCost, gasLimit, refundGas, triggerRefund, txCostEstimate } = await costLower(bridge, relayer, lowerProof);
-    const tx = await bridge.connect(relayer).relayerLower(gasCost, lowerProof, triggerRefund, { gasLimit });
+    const { args, costEstimate, gasEstimate, gasSettings } = await costLower(ethers.provider, bridge, relayer.address, [lowerProof]);
+    const gasCost = args[0];
+    const triggerRefund = args[args.length - 1];
+    const { gasLimit } = gasSettings;
+    const tx = await bridge.connect(relayer).relayerLower(...args, { gasLimit });
     const { actualGas, actualCost } = await processTx(tx, amount);
-    if (LOG_GAS) logGas('Lower', actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund);
+    if (LOG_GAS) logGas('Lower', actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund);
   }
 
-  function logGas(method, actualCost, actualGas, txCostEstimate, gasCost, gasEstimate, gasLimit, refundGas, triggerRefund) {
-    actualCost = parseInt(actualCost);
-    actualGas = parseInt(actualGas);
+  function logGas(method, actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund) {
+    actualCost = Number(actualCost);
+    actualGas = Number(actualGas);
 
     const auxGas = gasCost - gasEstimate;
-    const gasDiff = triggerRefund === true ? gasEstimate + refundGas - actualGas : gasEstimate - actualGas;
+    const gasDiff = triggerRefund === true ? gasEstimate + relayerRefundGasUse - actualGas : gasEstimate - actualGas;
     const gasOkay = Math.abs(gasDiff) < 20;
-    const costDiff = txCostEstimate - actualCost;
+    const costDiff = costEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;
-    const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;
+    const usdcCost = `$${(actualCost / 1e6).toFixed(2)}`;
 
     console.log(
-      `${method}, ${triggerRefund}, ${gasEstimate}, ${auxGas}, ${actualGas}, ${gasLimit}, ${gasDiff}, ${txCostEstimate}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`
+      `${method}, ${triggerRefund}, ${gasEstimate}, ${auxGas}, ${actualGas}, ${gasLimit}, ${gasDiff}, ${costEstimate}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`
     );
   }
 

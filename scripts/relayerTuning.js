@@ -129,15 +129,15 @@ async function main() {
   }
 
   function logGas(method, actualCost, actualGas, costEstimate, gasCost, gasEstimate, gasLimit, relayerRefundGasUse, triggerRefund) {
-    actualCost = parseInt(actualCost);
-    actualGas = parseInt(actualGas);
+    actualCost = Number(actualCost);
+    actualGas = Number(actualGas);
 
     const auxGas = gasCost - gasEstimate;
     const gasDiff = triggerRefund === true ? gasEstimate + relayerRefundGasUse - actualGas : gasEstimate - actualGas;
     const gasOkay = Math.abs(gasDiff) < 20;
     const costDiff = costEstimate - actualCost;
     const costOkay = Math.abs(costDiff) < 50;
-    const usdcCost = `$${(Number(actualCost) / 1e6).toFixed(2)}`;
+    const usdcCost = `$${(actualCost / 1e6).toFixed(2)}`;
 
     console.log(
       `${method}, ${triggerRefund}, ${gasEstimate}, ${auxGas}, ${actualGas}, ${gasLimit}, ${gasDiff}, ${costEstimate}, ${actualCost}, ${costDiff}, ${gasOkay}, ${costOkay}, ${usdcCost}`

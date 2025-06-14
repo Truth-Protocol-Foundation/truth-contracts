@@ -57,32 +57,6 @@ describe('Owner Functions', async () => {
     });
   });
 
-  context('Renouncing ownership', async () => {
-    context('is disabled', async () => {
-      it('on the bridge', async () => {
-        expect(owner).to.equal(await bridge.owner());
-        await expect(bridge.renounceOwnership()).to.be.revertedWith('Disabled');
-        expect(owner).to.equal(await bridge.owner());
-      });
-
-      it('on the truth token', async () => {
-        expect(owner).to.equal(await truth.owner());
-        await expect(truth.renounceOwnership()).to.be.revertedWith('Disabled');
-        expect(owner).to.equal(await truth.owner());
-      });
-    });
-
-    context('fails', async () => {
-      it('on the bridge when the caller is not the owner', async () => {
-        await expect(bridge.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
-      });
-
-      it('on the truth token when the caller is not the owner', async () => {
-        await expect(truth.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(truth, 'OwnableUnauthorizedAccount');
-      });
-    });
-  });
-
   context('Pausing bridge functionality', async () => {
     context('succeeds', async () => {
       it('when the caller is the owner', async () => {
@@ -266,6 +240,28 @@ describe('Owner Functions', async () => {
           'OwnableUnauthorizedAccount'
         );
       });
+    });
+  });
+
+  context('Renouncing ownership', async () => {
+    it('fails on the bridge when the caller is not the owner', async () => {
+      await expect(bridge.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(bridge, 'OwnableUnauthorizedAccount');
+    });
+
+    it('fails on the token when the caller is not the owner', async () => {
+      await expect(truth.connect(otherAccount).renounceOwnership()).to.be.revertedWithCustomError(truth, 'OwnableUnauthorizedAccount');
+    });
+
+    it('is disabled on the bridge', async () => {
+      expect(owner).to.equal(await bridge.owner());
+      await expect(bridge.renounceOwnership()).to.be.revertedWith('Disabled');
+      expect(owner).to.equal(await bridge.owner());
+    });
+
+    it('succeeds on the token', async () => {
+      expect(owner).to.equal(await truth.owner());
+      await truth.renounceOwnership();
+      expect(ZERO_ADDRESS).to.equal(await truth.owner());
     });
   });
 });

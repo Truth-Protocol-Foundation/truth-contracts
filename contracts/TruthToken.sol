@@ -26,10 +26,6 @@ contract TruthToken is Initializable, ERC20Upgradeable, ERC20PermitUpgradeable, 
     return 10;
   }
 
-  function renounceOwnership() public view override onlyOwner {
-    revert('Disabled');
-  }
-
   function symbol() public pure override returns (string memory) {
     return 'TRUU';
   }

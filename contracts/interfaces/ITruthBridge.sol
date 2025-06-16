@@ -26,6 +26,7 @@ interface ITruthBridge {
   function relayerLift(uint256 gasCost, uint256 amount, address user, uint8 v, bytes32 r, bytes32 s, bool triggerRefund) external;
   function relayerLower(uint256 gasCost, bytes calldata proof, bool triggerRefund) external;
   function usdcEth() external view returns (uint256 price);
+  function cancelLower(bytes32 t2PubKey, uint8 wallletType, bytes calldata proof) external;
   function claimLower(bytes calldata proof) external;
   function checkLower(
     bytes calldata proof

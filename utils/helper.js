@@ -242,6 +242,7 @@ function printErrorCodes() {
     'AlreadyAdded()',
     'AmountTooLow()',
     'BadConfirmations()',
+    'BadWalletType()',
     'CannotChangeT2Key(bytes32)',
     'InvalidCaller()',
     'InvalidProof()',

@@ -45,6 +45,8 @@ contract TruthBridge is
   uint256 private constant T2_TOKEN_LIMIT = type(uint128).max;
   uint256 private constant MINIMUM_PROOF_LENGTH = LOWER_DATA_LENGTH + SIGNATURE_LENGTH * 2;
   uint160 private constant MIN_SQRT_RATIO = 4295128739;
+  uint8 private constant REGULAR_WALLET = 1;
+  uint8 private constant PREDICTION_MARKET_WALLET = 2;
   int8 private constant TX_SUCCEEDED = 1;
   int8 private constant TX_PENDING = 0;
   int8 private constant TX_FAILED = -1;
@@ -79,6 +81,7 @@ contract TruthBridge is
   error AlreadyAdded(); // 0xf411c327
   error AmountTooLow(); // 0x1fbaba35
   error BadConfirmations(); // 0x409c8aac
+  error BadWalletType(); // 0x8ec45d58
   error CannotChangeT2Key(bytes32); // 0x140c6815
   error InvalidCaller(); // 0x48f5c3ed
   error InvalidProof(); // 0x09bde339
@@ -406,6 +409,26 @@ contract TruthBridge is
     }
 
     proofIsValid = confirmationsProvided >= confirmationsRequired;
+  }
+
+  /**
+   * @dev Allows the recipient or the owner to cancel a lower.
+   */
+  function cancelLower(bytes32 t2PubKey, uint8 walletType, bytes calldata proof) external whenNotPaused nonReentrant {
+    if (t2PubKey == bytes32(0)) revert InvalidT2Key();
+    (address token, uint256 amount, address recipient, uint32 lowerId) = _extractLowerData(proof);
+    if (msg.sender != recipient && msg.sender != owner()) revert InvalidCaller();
+
+    _processLower(token, amount, recipient, lowerId, proof);
+    emit LogLowerClaimed(lowerId);
+
+    if (walletType == REGULAR_WALLET) {
+      emit LogLifted(token, t2PubKey, amount);
+    } else if (walletType == PREDICTION_MARKET_WALLET) {
+      emit LogLiftedToPredictionMarket(token, t2PubKey, amount);
+    } else {
+      revert BadWalletType();
+    }
   }
 
   /**

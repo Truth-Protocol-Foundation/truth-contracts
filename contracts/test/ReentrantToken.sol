@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 contract ReentrantToken is ERC20 {
   enum ReentryPoint {
+    CancelLower,
     ClaimLower,
     Lift,
     PermitLift,
@@ -27,6 +28,7 @@ contract ReentrantToken is ERC20 {
   uint8 private _v;
   bytes32 private _r;
   bytes32 private _s;
+  uint8 private _walletType;
 
   constructor(ITruthBridge bridge) ERC20('R20', 'R20') {
     _mint(msg.sender, 100000000000000000);
@@ -45,7 +47,8 @@ contract ReentrantToken is ERC20 {
   }
 
   function _attemptReentry() private {
-    if (_reentryPoint == ReentryPoint.ClaimLower) _bridge.claimLower(_proof);
+    if (_reentryPoint == ReentryPoint.CancelLower) _bridge.cancelLower(_t2PubKey, _walletType, _proof);
+    else if (_reentryPoint == ReentryPoint.ClaimLower) _bridge.claimLower(_proof);
     else if (_reentryPoint == ReentryPoint.Lift) _bridge.lift(_token, _t2PubKeyBytes, _amount);
     else if (_reentryPoint == ReentryPoint.PermitLift) _bridge.permitLift(_token, _t2PubKey, _amount, _deadline, _v, _r, _s);
     else if (_reentryPoint == ReentryPoint.PredictionMarketLift) _bridge.predictionMarketLift(_token, _amount);

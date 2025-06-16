@@ -17,13 +17,13 @@ const {
   ZERO_ADDRESS
 } = require('../utils/helper.js');
 
-let bridge, truth, owner, user, t2PubKey;
+let bridge, truth, owner, user, otherAccount, t2PubKey;
 
 describe('User Functions', async () => {
   before(async () => {
     const numAuthors = 5;
     await init(numAuthors);
-    [owner, user] = getAccounts();
+    [owner, user, otherAccount] = getAccounts();
     truth = await deployToken(owner);
     bridge = await deployBridge(truth, owner);
     t2PubKey = await bridge.deriveT2PublicKey(owner.address);
@@ -231,14 +231,129 @@ describe('User Functions', async () => {
     });
   });
 
+  context('Lower cancellation', async () => {
+    const REGULAR_WALLET = 1;
+    const PREDICTION_MARKET_WALLET = 2;
+    let amount = 100n;
+    let bridgeBalance, userBalance;
+
+    context('succeeds', async () => {
+      beforeEach(async () => {
+        await truth.approve(bridge.address, amount);
+        await bridge.lift(truth.address, t2PubKey, amount);
+        bridgeBalance = await truth.balanceOf(bridge.address);
+        userBalance = await truth.balanceOf(user.address);
+      });
+
+      it('when called by the intended recipient to return the funds to a regular wallet', async () => {
+        amount = 100n;
+        const [lowerProof, lowerId] = await createLowerProof(bridge, truth, amount, user);
+
+        await expect(bridge.connect(user).cancelLower(t2PubKey, REGULAR_WALLET, lowerProof))
+          .to.emit(bridge, 'LogLowerClaimed')
+          .withArgs(lowerId)
+          .to.emit(bridge, 'LogLifted')
+          .withArgs(truth.address, t2PubKey, amount);
+
+        expect(await truth.balanceOf(bridge.address)).to.equal(bridgeBalance);
+        expect(await truth.balanceOf(user.address)).to.equal(userBalance);
+      });
+
+      it('when called by the intended recipient to return the funds to a prediction market wallet', async () => {
+        amount = 200n;
+        const [lowerProof, lowerId] = await createLowerProof(bridge, truth, amount, user);
+
+        await expect(bridge.connect(user).cancelLower(t2PubKey, PREDICTION_MARKET_WALLET, lowerProof))
+          .to.emit(bridge, 'LogLowerClaimed')
+          .withArgs(lowerId)
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, t2PubKey, amount);
+
+        expect(await truth.balanceOf(bridge.address)).to.equal(bridgeBalance);
+        expect(await truth.balanceOf(user.address)).to.equal(userBalance);
+      });
+
+      it('when called by the owner to return the funds to a regular wallet', async () => {
+        amount = 300n;
+        const [lowerProof, lowerId] = await createLowerProof(bridge, truth, amount, user);
+
+        await expect(bridge.connect(owner).cancelLower(t2PubKey, REGULAR_WALLET, lowerProof))
+          .to.emit(bridge, 'LogLowerClaimed')
+          .withArgs(lowerId)
+          .to.emit(bridge, 'LogLifted')
+          .withArgs(truth.address, t2PubKey, amount);
+
+        expect(await truth.balanceOf(bridge.address)).to.equal(bridgeBalance);
+        expect(await truth.balanceOf(user.address)).to.equal(userBalance);
+      });
+
+      it('when called by the owner to return the funds to a prediction market wallet', async () => {
+        amount = 400n;
+        const [lowerProof, lowerId] = await createLowerProof(bridge, truth, amount, user);
+
+        await expect(bridge.connect(owner).cancelLower(t2PubKey, PREDICTION_MARKET_WALLET, lowerProof))
+          .to.emit(bridge, 'LogLowerClaimed')
+          .withArgs(lowerId)
+          .to.emit(bridge, 'LogLiftedToPredictionMarket')
+          .withArgs(truth.address, t2PubKey, amount);
+
+        expect(await truth.balanceOf(bridge.address)).to.equal(bridgeBalance);
+        expect(await truth.balanceOf(user.address)).to.equal(userBalance);
+      });
+    });
+
+    context('fails when', async () => {
+      const amount = 500n;
+      let lowerProof;
+
+      beforeEach(async () => {
+        [lowerProof] = await createLowerProof(bridge, truth, amount, user);
+      });
+
+      it('the bridge is paused', async () => {
+        await bridge.pause();
+        await expect(bridge.cancelLower(t2PubKey, REGULAR_WALLET, lowerProof)).to.be.revertedWithCustomError(bridge, 'EnforcedPause');
+        await bridge.unpause();
+      });
+
+      it('the t2PubKey is invalid', async () => {
+        await expect(bridge.cancelLower(EMPTY_BYTES_32, PREDICTION_MARKET_WALLET, lowerProof)).to.be.revertedWithCustomError(bridge, 'InvalidT2Key');
+      });
+
+      it('the lower has already been claimed', async () => {
+        await bridge.claimLower(lowerProof);
+        await expect(bridge.cancelLower(t2PubKey, REGULAR_WALLET, lowerProof)).to.be.revertedWithCustomError(bridge, 'LowerIsUsed');
+      });
+
+      it('the lower was already cancelled', async () => {
+        await bridge.cancelLower(t2PubKey, PREDICTION_MARKET_WALLET, lowerProof);
+        await expect(bridge.cancelLower(t2PubKey, REGULAR_WALLET, lowerProof)).to.be.revertedWithCustomError(bridge, 'LowerIsUsed');
+      });
+
+      it('the proof is invalid', async () => {
+        await expect(bridge.cancelLower(t2PubKey, PREDICTION_MARKET_WALLET, randomBytes32())).to.be.revertedWithCustomError(bridge, 'InvalidProof');
+      });
+
+      it('the wallet type is invalid', async () => {
+        await expect(bridge.cancelLower(t2PubKey, 0, lowerProof)).to.be.revertedWithCustomError(bridge, 'BadWalletType');
+        await expect(bridge.cancelLower(t2PubKey, 3, lowerProof)).to.be.revertedWithCustomError(bridge, 'BadWalletType');
+      });
+
+      it('the caller is neither the recipient nor the owner', async () => {
+        await expect(bridge.connect(otherAccount).cancelLower(t2PubKey, REGULAR_WALLET, lowerProof)).to.be.revertedWithCustomError(bridge, 'InvalidCaller');
+      });
+    });
+  });
+
   context('Reentrancy prevention', async () => {
     const reentryPoint = {
-      ClaimLower: 0,
-      Lift: 1,
-      PermitLift: 2,
-      PredictionMarketLift: 3,
-      PredictionMarketPermitLift: 4,
-      PredictionMarketRecipientLift: 5
+      CancelLower: 0,
+      ClaimLower: 1,
+      Lift: 2,
+      PermitLift: 3,
+      PredictionMarketLift: 4,
+      PredictionMarketPermitLift: 5,
+      PredictionMarketRecipientLift: 6
     };
     const amount = 100n;
     let reentrantToken;
@@ -248,6 +363,11 @@ describe('User Functions', async () => {
       reentrantToken = await contract.deploy(bridge.address);
       reentrantToken.address = await reentrantToken.getAddress();
       await reentrantToken.approve(bridge.address, amount * 5n);
+    });
+
+    it('the cancelLower re-entrancy check is triggered correctly', async () => {
+      await reentrantToken.setReentryPoint(reentryPoint.CancelLower);
+      await expect(bridge.lift(reentrantToken.address, t2PubKey, amount)).to.be.revertedWithCustomError(bridge, 'ReentrancyGuardReentrantCall');
     });
 
     it('the claimLower re-entrancy check is triggered correctly', async () => {

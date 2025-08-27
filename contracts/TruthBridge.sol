@@ -186,9 +186,12 @@ contract TruthBridge is
     uint256 id = t2PubKeyToId[t2PubKey];
     if (!isAuthor[id]) revert NotAnAuthor();
 
-    isAuthor[id] = false;
+    _verifyConfirmations(false, keccak256(abi.encode(t2PubKey, t1PubKey, expiry, t2TxId)), confirmations);
 
     if (numActiveAuthors <= MINIMUM_AUTHOR_SET) revert NotEnoughAuthors();
+
+    _storeT2TxId(t2TxId);
+    isAuthor[id] = false;
 
     if (authorIsActive[id]) {
       authorIsActive[id] = false;
@@ -196,9 +199,6 @@ contract TruthBridge is
         --numActiveAuthors;
       }
     }
-
-    _verifyConfirmations(false, keccak256(abi.encode(t2PubKey, t1PubKey, expiry, t2TxId)), confirmations);
-    _storeT2TxId(t2TxId);
 
     emit LogAuthorRemoved(idToT1Address[id], t2PubKey, t2TxId);
   }
